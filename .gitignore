@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+*.log
+.strong-mcp/
+token.json
+snapshot.json
+.DS_Store
