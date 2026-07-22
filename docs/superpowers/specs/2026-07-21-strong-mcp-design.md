@@ -153,10 +153,10 @@ Facts:
 ### TokenManager behavior
 - **State persisted to disk** (e.g. `~/.strong-mcp/token.json`, `chmod 600`): `{accessToken, refreshToken, expiresAt, deviceId, userId}`.
 - **Primary renewal path: refresh.** Before a request, if within ~60s of `expiresAt`, call `/auth/login/refresh`, then **persist the newly rotated refreshToken** (critical — failing to persist breaks the next refresh).
-- **Initial credential:** either (a) a captured `{accessToken, refreshToken}` pair seeded into config (password never stored), or (b) `usernameOrEmail`+`password`+`deviceId` for an initial `/auth/login`. Password, if provided, is used only for initial login and re-login fallback.
-- **Fallback:** if refresh fails and a password is configured, re-login. Otherwise surface a clear "re-auth required" error.
+- **Initial credential (v1): token seeding only.** A captured `{accessToken, refreshToken}` pair is seeded into config; **the password is never stored on disk.** From there, refresh keeps the session alive indefinitely as long as the server refreshes before the refresh token itself goes stale.
+- **Fallback:** if refresh fails, surface a clear "re-auth required — re-seed tokens" error. (Password-based auto re-login is intentionally deferred; see §12. Revisit only if re-seeding becomes painful.)
 - **Never log** tokens or credentials.
-- `deviceId` is a stable configured UUID.
+- `deviceId` is a stable configured UUID (must match the one used when the seeded tokens were minted).
 
 ## 6. Sync engine
 
@@ -228,11 +228,13 @@ One `softDelete(entity)` routine handles all types (with/without cascade).
 ## 10. Configuration
 
 Env / config file:
-- `STRONG_USERNAME`, `STRONG_PASSWORD` (optional if seeding tokens), `STRONG_DEVICE_ID`
-- or seeded `STRONG_ACCESS_TOKEN` / `STRONG_REFRESH_TOKEN`
+- `STRONG_ACCESS_TOKEN`, `STRONG_REFRESH_TOKEN` — seeded token pair (required for v1)
+- `STRONG_DEVICE_ID` — must match the device the seeded tokens were minted with
 - `STRONG_DATA_DIR` (default `~/.strong-mcp`)
 - `STRONG_PROXY_URL` (optional, dev)
 - Unit override (optional; default = account preference)
+
+Seeded tokens are read on first run and thereafter the persisted `token.json` is the source of truth (it holds the rotated refresh token). Password-based config (`STRONG_USERNAME`/`STRONG_PASSWORD`) is intentionally **not** part of v1.
 
 ## 11. Verified endpoint reference (captured)
 
@@ -271,6 +273,7 @@ PUT /api/users/{userId}
 ## 12. Out of scope (v1)
 
 - Multi-user / hosted deployment (single local user only).
+- **Password-based auth / auto re-login.** v1 seeds a token pair and relies on refresh; if refresh ever fails you re-seed. Storing the password for unattended re-login is deferred and revisited only if re-seeding becomes painful.
 - Deep modeling of `metric`, `widget`, `folder` reordering beyond what template CRUD needs.
 - Per-collection read endpoints (`/api/logs/{userId}`, etc.) — continuation sync is the backbone; these are a possible later optimization.
 - Distance/time/cardio-specific cell handling beyond generic passthrough (revisit when such data appears).
