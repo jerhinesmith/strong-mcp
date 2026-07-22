@@ -25,4 +25,10 @@ describe("loadConfig", () => {
     expect(cfg.dataDir).toBe("/data");
     expect(cfg.weightUnitOverride).toBe("KILOGRAMS");
   });
+  it("treats empty-string optional vars as absent (golden-path .env copy)", () => {
+    const cfg = loadConfig({ ...base, HOME: "/home/j", STRONG_DATA_DIR: "", STRONG_PROXY_URL: "", STRONG_WEIGHT_UNIT: "" } as NodeJS.ProcessEnv);
+    expect(cfg.dataDir).toBe("/home/j/.strong-mcp");
+    expect(cfg.proxyUrl).toBeUndefined();
+    expect(cfg.weightUnitOverride).toBeUndefined();
+  });
 });

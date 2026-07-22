@@ -8,9 +8,9 @@ const Env = z.object({
   STRONG_ACCESS_TOKEN: z.string().min(1, "STRONG_ACCESS_TOKEN is required"),
   STRONG_REFRESH_TOKEN: z.string().min(1, "STRONG_REFRESH_TOKEN is required"),
   STRONG_DEVICE_ID: z.string().min(1, "STRONG_DEVICE_ID is required"),
-  STRONG_DATA_DIR: z.string().optional(),
-  STRONG_PROXY_URL: z.string().url().optional(),
-  STRONG_WEIGHT_UNIT: z.enum(["POUNDS", "KILOGRAMS"]).optional(),
+  STRONG_DATA_DIR: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),
+  STRONG_PROXY_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
+  STRONG_WEIGHT_UNIT: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["POUNDS", "KILOGRAMS"]).optional()),
   HOME: z.string().optional(),
 });
 
