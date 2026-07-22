@@ -64,6 +64,38 @@ export class StrongHttpClient {
       return (body ? JSON.parse(body) : {}) as T;
     }
   }
+
+  async putUserDoc(userId: string, body: unknown): Promise<void> {
+    const url = `${BASE_URL}/api/users/${userId}`;
+    const payload = JSON.stringify(body);
+    let token = await this.opts.tokenManager.getAccessToken();
+    let refreshed = false;
+
+    for (;;) {
+      const init: any = {
+        method: "PUT",
+        headers: {
+          ...CLIENT_HEADERS,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: payload,
+      };
+      if (this.dispatcher) init.dispatcher = this.dispatcher;
+
+      const r = await this.opts.fetchImpl(url, init); // network errors propagate (no retry — write may have landed)
+
+      if (r.status === 401 && !refreshed) {
+        refreshed = true;
+        token = await this.opts.tokenManager.forceRefresh();
+        continue;
+      }
+      if (r.status < 200 || r.status >= 300) {
+        throw new Error(`PUT /api/users/${userId} → HTTP ${r.status}`);
+      }
+      return; // success — body is empty
+    }
+  }
 }
 
 /** Builds the RefreshFn used by TokenManager (POST /auth/login/refresh, no bearer). */

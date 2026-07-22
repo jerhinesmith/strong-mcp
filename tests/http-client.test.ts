@@ -43,3 +43,36 @@ describe("StrongHttpClient", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3); // initial + 2 retries
   });
 });
+
+describe("StrongHttpClient.putUserDoc", () => {
+  it("PUTs with bearer + content-type and resolves on 2xx empty body", async () => {
+    const fetchImpl = vi.fn(async () => ({ status: 200, text: async () => "" }));
+    const client = new StrongHttpClient({ tokenManager: fakeTM(), fetchImpl });
+    await expect(client.putUserDoc("u", { id: "u" })).resolves.toBeUndefined();
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toContain("/api/users/u");
+    expect(init.method).toBe("PUT");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+    expect(init.headers.Authorization).toMatch(/^Bearer /);
+    expect(JSON.parse(init.body)).toEqual({ id: "u" });
+  });
+
+  it("refreshes once and retries on 401", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 401, text: async () => "" })
+      .mockResolvedValueOnce({ status: 204, text: async () => "" });
+    const tm = fakeTM();
+    const client = new StrongHttpClient({ tokenManager: tm, fetchImpl });
+    await client.putUserDoc("u", {});
+    expect(tm.forceRefresh).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does NOT retry a 500 (write may have landed) and throws with the status", async () => {
+    const fetchImpl = vi.fn(async () => ({ status: 500, text: async () => "err" }));
+    const client = new StrongHttpClient({ tokenManager: fakeTM(), fetchImpl });
+    await expect(client.putUserDoc("u", {})).rejects.toThrow(/HTTP 500/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
