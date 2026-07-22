@@ -1,0 +1,11 @@
+{
+  "id": "ex-barbell",
+  "isHidden": false,
+  "measurementType": "EXERCISE",
+  "name": { "custom": "Barbell Bench" },
+  "cellTypeConfigs": [
+    { "cellType": "BARBELL_WEIGHT", "mandatory": true, "index": 0, "isExponent": false },
+    { "cellType": "REPS", "mandatory": true, "index": 1, "isExponent": false },
+    { "cellType": "RPE", "mandatory": false, "index": 2, "isExponent": true }
+  ]
+}
