@@ -61,6 +61,40 @@ describe("buildLog (WORKOUT)", () => {
       buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "missing", sets: [{ reps: 1, weight: 1 }] }] }, snap(), deps),
     ).toThrow(/missing/);
   });
+
+  it("throws (refuse rule) when a cellTypeConfig has an unknown cell type", () => {
+    const s = snap();
+    s.entities.measurement["ex-weird"] = {
+      id: "ex-weird", isHidden: false, measurementType: "EXERCISE",
+      name: { custom: "Weird" },
+      cellTypeConfigs: [{ cellType: "DISTANCE", mandatory: true, index: 0 }],
+    } as any;
+    expect(() =>
+      buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-weird", sets: [{ reps: 1, weight: 1 }] }] }, s, deps),
+    ).toThrow(/unknown cell type|DISTANCE|Refusing/i);
+  });
+
+  it("emits cells in cellTypeConfig index order even when configs are given out of order", () => {
+    const s = snap();
+    s.entities.measurement["ex-unordered"] = {
+      id: "ex-unordered", isHidden: false, measurementType: "EXERCISE",
+      name: { custom: "Unordered" },
+      cellTypeConfigs: [
+        { cellType: "REPS", index: 1 },
+        { cellType: "BARBELL_WEIGHT", index: 0 },
+      ],
+    } as any;
+    const log = buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-unordered", sets: [{ reps: 5, weight: 100 }] }] }, s, deps) as any;
+    const cells = log._embedded.cellSetGroup[0].cellSets[0].cells;
+    expect(cells.map((c: any) => c.cellType)).toEqual(["BARBELL_WEIGHT", "REPS"]);
+  });
+
+  it("passes weight through unconverted when weightUnit is KILOGRAMS", () => {
+    const kgDeps = { clock: makeClock(() => 1784685666000), weightUnit: "KILOGRAMS" as const };
+    const log = buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 100 }] }] }, snap(), kgDeps) as any;
+    const weightCell = log._embedded.cellSetGroup[0].cellSets[0].cells[0];
+    expect(Number(weightCell.value)).toBe(100);
+  });
 });
 
 describe("buildLog (TEMPLATE)", () => {
