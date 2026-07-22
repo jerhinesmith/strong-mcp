@@ -10,9 +10,10 @@ import { registerReadTools } from "./tools/read-tools.js";
 import type { Snapshot } from "./types.js";
 import type { WeightUnit } from "./units.js";
 
-function resolveWeightUnit(config: Config, snapshot: Snapshot): WeightUnit {
+export function resolveWeightUnit(config: Config, snapshot: Snapshot): WeightUnit {
   if (config.weightUnitOverride) return config.weightUnitOverride;
-  const pref = (snapshot.preferences as any)?.weightUnit?.[config.userId];
+  const wu = (snapshot.preferences as any)?.weightUnit;
+  const pref = typeof wu === "string" ? wu : wu?.[config.userId];
   return pref === "KILOGRAMS" ? "KILOGRAMS" : "POUNDS";
 }
 
