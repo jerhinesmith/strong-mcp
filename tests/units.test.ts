@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lbToKg, kgToLb, formatLb, toDisplayMeasuredValue } from "../src/units.js";
+import { lbToKg, kgToLb, formatLb, toDisplayMeasuredValue, toStoredMeasuredValue, formatKg } from "../src/units.js";
 
 describe("weight conversion", () => {
   it("converts lb → kg exactly as captured", () => {
@@ -25,5 +25,17 @@ describe("measuredValue display", () => {
   });
   it("unknown type passes raw through on read", () => {
     expect(toDisplayMeasuredValue("MYSTERY", 42, "POUNDS")).toEqual({ value: 42, unit: "" });
+  });
+  it("toStoredMeasuredValue throws on unknown type", () => {
+    expect(() => toStoredMeasuredValue("MYSTERY", 42, "POUNDS")).toThrow(/unknown measurement type/i);
+  });
+  it("BODY_FAT_PERCENTAGE round-trips store<->display", () => {
+    const stored = toStoredMeasuredValue("BODY_FAT_PERCENTAGE", 5, "POUNDS");
+    expect(stored).toBe(0.05);
+    expect(toDisplayMeasuredValue("BODY_FAT_PERCENTAGE", stored, "POUNDS")).toEqual({ value: 5, unit: "%" });
+  });
+  it("WEIGHT store converts lb->kg and formatKg rounds to 2 decimals", () => {
+    expect(toStoredMeasuredValue("WEIGHT", 200, "POUNDS")).toBeCloseTo(90.718474, 6);
+    expect(formatKg(90.718474)).toBe(90.72);
   });
 });
