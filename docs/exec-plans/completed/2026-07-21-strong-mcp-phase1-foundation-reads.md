@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-Copied verbatim from the design spec (`docs/superpowers/specs/2026-07-21-strong-mcp-design.md`). Every task inherits these.
+Copied verbatim from the design spec (`docs/design/2026-07-21-strong-mcp-design.md`). Every task inherits these.
 
 - **API base URL:** `https://back.strong.app`
 - **Client headers (all requests):** `X-Client-Platform: ios`, `X-Client-Version: 6.4.2`, `X-Client-Build: 8332`, `User-Agent: Strong iOS`, `Accept: application/json`. `X-Client-Version`/`X-Client-Build` are configurable constants in one module.
