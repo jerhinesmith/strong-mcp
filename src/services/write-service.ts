@@ -53,7 +53,15 @@ export class WriteService {
     return this.opts.engine.write((snapshot) => {
       const template = buildLog("TEMPLATE", input, snapshot, this.deps);
       const changes: Change[] = [{ collection: "template", entity: template }];
-      const folder = input.folderId ? snapshot.entities.folder[input.folderId] : defaultFolder(snapshot);
+      let folder: Entity | undefined;
+      if (input.folderId) {
+        folder = snapshot.entities.folder[input.folderId];
+        if (!folder || folder.isHidden === true) {
+          throw new Error(`No folder with id "${input.folderId}" in the current snapshot`);
+        }
+      } else {
+        folder = defaultFolder(snapshot);
+      }
       if (folder) changes.push({ collection: "folder", entity: addTemplateToFolder(folder, this.opts.userId, template.id, this.opts.clock) });
       return { changes, summary: { id: template.id, name: input.name } };
     });

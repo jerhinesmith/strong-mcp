@@ -56,6 +56,29 @@ describe("WriteService.createTemplate + deleteTemplate", () => {
     expect(env._embedded.folder[0]._links.template.some((l: any) => l.href.endsWith(`/templates/${res.id}`))).toBe(true);
   });
 
+  it("createTemplate with explicit valid folderId links into THAT folder", async () => {
+    const { service, snapshot, put } = makeService();
+    snapshot.entities.folder["u-other-folder"] = { id: "u-other-folder", isHidden: false, _links: { template: [] } };
+    const res = await service.createTemplate({ name: "Custom", folderId: "u-other-folder", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }] });
+    const env = put.mock.calls[0][0];
+    expect(env._embedded.template[0].id).toBe(res.id);
+    expect(env._embedded.folder[0].id).toBe("u-other-folder");
+    expect(env._embedded.folder[0]._links.template.some((l: any) => l.href.endsWith(`/templates/${res.id}`))).toBe(true);
+  });
+
+  it("createTemplate throws when explicit folderId is missing", async () => {
+    const { service } = makeService();
+    await expect(service.createTemplate({ name: "Orphan", folderId: "nope", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }] }))
+      .rejects.toThrow(/no folder.*nope/i);
+  });
+
+  it("createTemplate throws when explicit folderId is hidden", async () => {
+    const { service, snapshot } = makeService();
+    snapshot.entities.folder["u-hidden"] = { id: "u-hidden", isHidden: true, _links: { template: [] } };
+    await expect(service.createTemplate({ name: "Orphan", folderId: "u-hidden", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }] }))
+      .rejects.toThrow(/no folder.*u-hidden/i);
+  });
+
   it("deleteTemplate soft-deletes and unlinks from its folder", async () => {
     const { service, snapshot, put } = makeService();
     // seed a template + folder link
