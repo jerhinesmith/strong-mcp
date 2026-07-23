@@ -45,14 +45,46 @@ describe("WriteEngine", () => {
     expect(d.persist).not.toHaveBeenCalled();
   });
 
-  it("serializes concurrent writes (no interleave) and a failure doesn't block the next", async () => {
+  it("serializes writes: B's build does not run until A fully settles", async () => {
     const order: string[] = [];
-    const d = deps({ put: vi.fn(async () => { order.push("put"); }) });
+    let releaseA!: () => void;
+    const gateA = new Promise<void>((r) => { releaseA = r; });
+    let putCall = 0;
+    const d = deps({
+      put: vi.fn(async () => {
+        const n = ++putCall;
+        order.push(`put-${n}-start`);
+        if (n === 1) await gateA; // A's put blocks until released
+        order.push(`put-${n}-end`);
+      }),
+    });
     const engine = new WriteEngine(d);
     const a = engine.write(() => { order.push("build-a"); return { changes: [], summary: "a" }; });
     const b = engine.write(() => { order.push("build-b"); return { changes: [], summary: "b" }; });
+
+    // Let microtasks flush; A should be parked in put, B must NOT have built yet.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(order).toEqual(["build-a", "put-1-start"]);
+
+    releaseA();
     await Promise.all([a, b]);
-    // a fully completes (build then put) before b builds
-    expect(order).toEqual(["build-a", "put", "build-b", "put"]);
+    expect(order).toEqual(["build-a", "put-1-start", "put-1-end", "build-b", "put-2-start", "put-2-end"]);
+  });
+
+  it("a failed write rejects its caller but does not block the next write", async () => {
+    let putCall = 0;
+    const d = deps({
+      put: vi.fn(async () => {
+        if (++putCall === 1) throw new Error("PUT /api/users/u → HTTP 500");
+      }),
+    });
+    const engine = new WriteEngine(d);
+    const a = engine.write(() => ({ changes: [], summary: "a" }));
+    const bBuilt = vi.fn();
+    const b = engine.write(() => { bBuilt(); return { changes: [], summary: "b" }; });
+
+    await expect(a).rejects.toThrow(/HTTP 500/); // A's caller gets the real error
+    await expect(b).resolves.toBe("b");           // B still ran despite A failing
+    expect(bBuilt).toHaveBeenCalled();
   });
 });
