@@ -87,3 +87,54 @@ describe("WriteService.logMeasurement / archiveExercise", () => {
     void snapshot;
   });
 });
+
+describe("WriteService.requireVisible coverage", () => {
+  it("deleteWorkout throws when the id is not in the snapshot", async () => {
+    const { service } = makeService();
+    await expect(service.deleteWorkout("nope")).rejects.toThrow(/no log.*nope/i);
+  });
+
+  it("updateTemplateName throws when the template is hidden", async () => {
+    const { service, snapshot } = makeService();
+    snapshot.entities.template["thidden"] = { id: "thidden", logType: "TEMPLATE", isHidden: true, _embedded: { cellSetGroup: [] } };
+    await expect(service.updateTemplateName("thidden", "New")).rejects.toThrow(/no template.*thidden/i);
+  });
+});
+
+describe("WriteService.deleteWorkout", () => {
+  it("soft-deletes a logged workout", async () => {
+    const { service, snapshot, put } = makeService();
+    snapshot.entities.log["w1"] = { id: "w1", logType: "WORKOUT", isHidden: false, _embedded: { cellSetGroup: [] } };
+    const res = await service.deleteWorkout("w1");
+    expect(res.deleted).toBe(true);
+    expect(put.mock.calls[0][0]._embedded.log[0].isHidden).toBe(true);
+  });
+});
+
+describe("WriteService.updateTemplateName", () => {
+  it("renames a template", async () => {
+    const { service, snapshot, put } = makeService();
+    snapshot.entities.template["t1"] = { id: "t1", logType: "TEMPLATE", isHidden: false, name: { custom: "Old" }, _embedded: { cellSetGroup: [] } };
+    const res = await service.updateTemplateName("t1", "New");
+    expect(res.id).toBe("t1");
+    expect(put.mock.calls[0][0]._embedded.template[0].name.custom).toBe("New");
+  });
+});
+
+describe("WriteService.createExercise", () => {
+  it("writes a new EXERCISE measurement", async () => {
+    const { service, put } = makeService();
+    const res = await service.createExercise({ name: "Zercher", cellTypeConfigs: [{ cellType: "BARBELL_WEIGHT" }, { cellType: "REPS" }] });
+    expect(res.name).toBe("Zercher");
+    expect(put.mock.calls[0][0]._embedded.measurement[0].measurementType).toBe("EXERCISE");
+  });
+});
+
+describe("WriteService.updateExerciseName", () => {
+  it("renames an exercise definition", async () => {
+    const { service, put } = makeService();
+    const res = await service.updateExerciseName("ex-barbell", "Renamed Bench");
+    expect(res.id).toBe("ex-barbell");
+    expect(put.mock.calls[0][0]._embedded.measurement[0].name.custom).toBe("Renamed Bench");
+  });
+});
