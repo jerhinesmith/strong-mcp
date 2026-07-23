@@ -7,6 +7,10 @@ import { SnapshotStore } from "./sync/snapshot-store.js";
 import { SyncEngine } from "./sync/sync-engine.js";
 import { ReadService } from "./services/read-service.js";
 import { registerReadTools } from "./tools/read-tools.js";
+import { WriteEngine } from "./write/write-engine.js";
+import { WriteService } from "./services/write-service.js";
+import { registerWriteTools } from "./tools/write-tools.js";
+import { makeClock } from "./write/ids.js";
 import type { Snapshot } from "./types.js";
 import type { WeightUnit } from "./units.js";
 
@@ -51,7 +55,24 @@ export async function buildServer(
     return { pages };
   };
 
+  const writeEngine = new WriteEngine({
+    userId: config.userId,
+    refresh: async () => {
+      await sync();      // delta-sync; swaps the in-memory `snapshot`
+      return snapshot;
+    },
+    put: (envelope) => http.putUserDoc(config.userId, envelope),
+    persist: (s) => snapshotStore.save(s),
+  });
+  const writeService = new WriteService({
+    engine: writeEngine,
+    getWeightUnit: () => resolveWeightUnit(config, snapshot),
+    clock: makeClock(now),
+    userId: config.userId,
+  });
+
   const server = new McpServer({ name: "strong-mcp", version: "0.1.0" });
   registerReadTools(server, { service, sync });
+  registerWriteTools(server, writeService);
   return { server, sync };
 }
