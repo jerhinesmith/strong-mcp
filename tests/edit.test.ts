@@ -59,4 +59,28 @@ describe("editSetCells", () => {
   it("throws on an out-of-range set index", () => {
     expect(() => editSetCells(log(), [{ groupIndex: 0, setIndex: 5, reps: 1 }], deps)).toThrow(/range/i);
   });
+
+  it("throws on an out-of-range group index", () => {
+    expect(() => editSetCells(log(), [{ groupIndex: 5, setIndex: 0, reps: 1 }], deps)).toThrow(/range/i);
+  });
+
+  it("writes weight without conversion when weightUnit is KILOGRAMS", () => {
+    const kgDeps = { clock, weightUnit: "KILOGRAMS" as const };
+    const out = editSetCells(log(), [{ groupIndex: 0, setIndex: 0, weight: 100 }], kgDeps) as any;
+    const weightCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find((c: any) => c.cellType === "BARBELL_WEIGHT");
+    expect(Number(weightCell.value)).toBe(100);
+  });
+
+  it("writes an rpe value onto the RPE cell", () => {
+    const out = editSetCells(log(), [{ groupIndex: 0, setIndex: 0, rpe: 9 }], deps) as any;
+    const rpeCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find((c: any) => c.cellType === "RPE");
+    expect(rpeCell.value).toBe("9");
+  });
+
+  it("does not mutate the input entity", () => {
+    const input = log();
+    const before = JSON.stringify(input);
+    editSetCells(input, [{ groupIndex: 0, setIndex: 0, reps: 99 }], deps);
+    expect(JSON.stringify(input)).toBe(before);
+  });
 });
