@@ -113,7 +113,7 @@ export function registerWriteTools(server: McpServer, service: WriteService): vo
     "strong_update_workout",
     {
       description:
-        "Edit sets in a logged workout by id. Each edit targets a working set by position: {groupIndex, setIndex, reps?, weight?, rpe?}. Weights in your display unit; untouched cells are preserved verbatim. INFERRED shape — result includes serverConfirmed (re-synced from Strong to confirm the edit landed).",
+        "Edit sets in a logged workout by id. Each edit targets a working set by position: {groupIndex, setIndex, reps?, weight?, rpe?}. Weights in your display unit; untouched cells are preserved verbatim. INFERRED shape — result includes serverConfirmed: true means Strong accepted the edit; false means the local view is optimistic and unverified (run strong_sync to reconcile); undefined means the confirmation re-sync failed.",
       inputSchema: {
         id: z.string(),
         edits: z
@@ -136,7 +136,7 @@ export function registerWriteTools(server: McpServer, service: WriteService): vo
     "strong_delete_measurement",
     {
       description:
-        "Soft-delete a body measurement by id. INFERRED shape — result includes serverConfirmed (re-synced from Strong to confirm the delete landed).",
+        "Soft-delete a body measurement by id. INFERRED shape — result includes serverConfirmed: true means Strong accepted the delete; false means the local view is optimistic and unverified (run strong_sync to reconcile); undefined means the confirmation re-sync failed.",
       inputSchema: { id: z.string() },
     },
     async (a: any) => text(await service.deleteMeasurement(a.id)),
