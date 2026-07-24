@@ -64,16 +64,6 @@ export async function runLogin(deps: RunLoginDeps): Promise<{ userId: string }> 
 }
 
 /**
- * TTY prompts backed by a SINGLE readline interface shared across both reads.
- * Opening a second interface on the same stdin (or closing the first) ends the
- * shared stream and makes the next read see EOF — so we create one interface,
- * reuse it for email and password, and toggle output muting for the password.
- *
- * `login` is an interactive command: it requires a real terminal so the
- * password can be typed without being echoed. If stdin is not a TTY (piped,
- * redirected, CI), fail loudly rather than dangle on an EOF'd read.
- */
-/**
  * A Writable that passes through to `out` unless muted. Used to swallow the
  * echo of typed password characters. Exposed for testing; `setMuted` toggles it.
  */
@@ -92,8 +82,16 @@ export function makeMutedWriter(out: NodeJS.WritableStream): {
 }
 
 /**
- * Build the real TTY prompts, backed by one readline interface. Call once per
- * `login` invocation and pass the result to runLogin, which closes it when done.
+ * Build the real TTY prompts, backed by a SINGLE readline interface shared
+ * across both reads. Opening a second interface on the same stdin (or closing
+ * the first) ends the shared stream and makes the next read see EOF — so we
+ * create one interface, reuse it for email and password, and toggle output
+ * muting for the password. Call once per `login` invocation and pass the
+ * result to runLogin, which closes it when done.
+ *
+ * `login` is interactive: it needs a real terminal so the password can be typed
+ * without being echoed. On a non-TTY stdin (piped, redirected, CI) it fails
+ * loudly rather than dangling on an EOF'd read.
  */
 export function makeTtyPrompts(): LoginPrompts {
   if (!process.stdin.isTTY) {
