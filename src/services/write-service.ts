@@ -1,6 +1,6 @@
 import type { Entity, Snapshot } from "../types.js";
 import type { WeightUnit } from "../units.js";
-import { editEntityName } from "../write/edit.js";
+import { editEntityName, editSetCells, verifySetCells } from "../write/edit.js";
 import { buildExerciseDefinition, buildMeasuredValue } from "../write/entity-builders.js";
 import type { Change } from "../write/envelope.js";
 import {
@@ -19,6 +19,14 @@ interface Options {
   getWeightUnit: () => WeightUnit;
   clock: Clock;
   userId: string;
+  /**
+   * Full re-sync returning pristine server truth. Used only to verify the two
+   * inferred write shapes (updateWorkoutSets / deleteMeasurement) after a 2xx —
+   * the engine's optimistic local snapshot cannot confirm the server accepted
+   * the edit. Never throws the write; a failed re-sync just leaves
+   * serverConfirmed undefined.
+   */
+  resync: () => Promise<Snapshot>;
 }
 
 export interface CreateExerciseInput {
@@ -30,7 +38,7 @@ export interface CreateExerciseInput {
 
 function requireVisible(
   snapshot: Snapshot,
-  collection: "log" | "template" | "measurement",
+  collection: "log" | "template" | "measurement" | "measuredValue",
   id: string,
 ): Entity {
   const e = snapshot.entities[collection][id];
@@ -151,5 +159,67 @@ export class WriteService {
         summary: { id, archived: true as const },
       };
     });
+  }
+
+  /**
+   * Full re-sync for post-write verification. Never throws: if the re-sync
+   * itself fails, the write already succeeded (2xx), so we return null and
+   * report serverConfirmed as undefined rather than surfacing a false error.
+   */
+  private async safeResync(): Promise<Snapshot | null> {
+    try {
+      return await this.opts.resync();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * INFERRED write shape (§2): the workout-edit PUT was never captured. We
+   * re-send the log document with only the targeted cells rewritten
+   * (byte-for-byte preservation, §6.5) and then re-sync to confirm the server
+   * accepted the edit. serverConfirmed distinguishes "landed and verified"
+   * from "PUT returned 2xx but server truth doesn't reflect it yet".
+   */
+  async updateWorkoutSets(
+    id: string,
+    edits: { groupIndex: number; setIndex: number; reps?: number; weight?: number; rpe?: number }[],
+  ): Promise<{ id: string; serverConfirmed?: boolean }> {
+    // Resolve the unit ONCE so the edit we write and the verification we run
+    // agree even if the preference changed during the mid-write refresh.
+    const weightUnit = this.opts.getWeightUnit();
+    const deps = { clock: this.opts.clock, weightUnit };
+    let sent: Entity | undefined; // the document we PUT — baseline for structural verify
+    const summary = await this.opts.engine.write((snapshot) => {
+      const log = requireVisible(snapshot, "log", id);
+      sent = editSetCells(log, edits, deps); // throws on unmatched field / bad index
+      return { changes: [{ collection: "log", entity: sent }], summary: { id } };
+    });
+    const fresh = await this.safeResync();
+    const serverConfirmed = fresh
+      ? verifySetCells(sent, fresh.entities.log[id], edits, { weightUnit })
+      : undefined;
+    return { ...summary, serverConfirmed };
+  }
+
+  /**
+   * INFERRED write shape (§2): the measurement-delete PUT was never captured.
+   * We apply the same flat soft-delete (isHidden:true) used for other deletes
+   * and re-sync to confirm the entity is gone or hidden in server truth.
+   */
+  async deleteMeasurement(
+    id: string,
+  ): Promise<{ id: string; deleted: true; serverConfirmed?: boolean }> {
+    const summary = await this.opts.engine.write((snapshot) => {
+      const v = requireVisible(snapshot, "measuredValue", id);
+      return {
+        changes: [{ collection: "measuredValue", entity: softDelete(v, this.opts.clock) }],
+        summary: { id, deleted: true as const },
+      };
+    });
+    const fresh = await this.safeResync();
+    const after = fresh?.entities.measuredValue[id];
+    const serverConfirmed = fresh ? after === undefined || after.isHidden === true : undefined;
+    return { ...summary, serverConfirmed };
   }
 }

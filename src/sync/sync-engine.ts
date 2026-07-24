@@ -35,7 +35,23 @@ export class SyncEngine {
     }
   }
 
-  private async walk(snapshot: Snapshot, startCursor: string | null) {
+  /**
+   * Full re-sync from scratch, ignoring the stored continuation cursor, WITHOUT
+   * persisting or mutating any shared state. Returns a fresh, pristine snapshot
+   * of server truth for read-only use — verifying inferred write shapes, where
+   * the optimistically-applied local snapshot cannot be trusted. Kept off the
+   * persistence path so it can run after a write resolves without racing the
+   * serialized write queue's own snapshot swaps.
+   */
+  async resync(): Promise<{ pages: number; snapshot: Snapshot }> {
+    return this.walk(this.opts.store.empty(), null, { persist: false });
+  }
+
+  private async walk(
+    snapshot: Snapshot,
+    startCursor: string | null,
+    opts: { persist: boolean } = { persist: true },
+  ) {
     let cursor = startCursor;
     let pages = 0;
     for (;;) {
@@ -47,7 +63,7 @@ export class SyncEngine {
       if (isEmptyPage(page) || !next) {
         snapshot.continuation = next ?? cursor;
         snapshot.syncedAt = new Date().toISOString();
-        await this.opts.store.save(snapshot);
+        if (opts.persist) await this.opts.store.save(snapshot);
         return { pages, snapshot };
       }
     }

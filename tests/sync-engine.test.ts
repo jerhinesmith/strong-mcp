@@ -49,6 +49,25 @@ describe("SyncEngine", () => {
     expect(pages).toBe(1);
   });
 
+  it("resync ignores the stored cursor and walks from scratch", async () => {
+    const s = store();
+    const seed = s.empty();
+    seed.continuation = "STALE";
+    seed.entities.log.old = { id: "old", isHidden: false }; // stale local entity
+    await s.save(seed);
+
+    const getJson = vi
+      .fn()
+      .mockResolvedValueOnce(page([{ id: "fresh" }], "C1"))
+      .mockResolvedValueOnce(page([], "C2")); // empty → stop
+    const engine = new SyncEngine({ http: { getJson }, store: s, userId: "u" });
+    const { snapshot } = await engine.resync();
+    // page 1 must NOT carry the stale cursor
+    expect(getJson.mock.calls[0][0]).not.toContain("continuation=");
+    // pristine server truth only — the stale local entity is gone
+    expect(Object.keys(snapshot.entities.log)).toEqual(["fresh"]);
+  });
+
   it("delta walk uses stored cursor and falls back to full sync on 4xx", async () => {
     const s = store();
     const seed = s.empty();

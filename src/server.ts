@@ -69,6 +69,14 @@ export async function buildServer(
     getWeightUnit: () => resolveWeightUnit(config, snapshot),
     clock: makeClock(now),
     userId: config.userId,
+    // Read-only: returns pristine server truth for post-write verification
+    // WITHOUT swapping the shared in-memory `snapshot` or persisting. Swapping
+    // here would race the serialized write queue's own snapshot management
+    // (the verify runs after engine.write resolves, outside the queue).
+    resync: async () => {
+      const { snapshot: fresh } = await engine.resync();
+      return fresh;
+    },
   });
 
   const server = new McpServer({ name: "strong-mcp", version: "0.1.0" });

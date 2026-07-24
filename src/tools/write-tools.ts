@@ -108,4 +108,37 @@ export function registerWriteTools(server: McpServer, service: WriteService): vo
     },
     async (a: any) => text(await service.archiveExercise(a.id)),
   );
+
+  server.registerTool(
+    "strong_update_workout",
+    {
+      description:
+        "Edit sets in a logged workout by id. Each edit targets a working set by position: {groupIndex, setIndex, reps?, weight?, rpe?}. Weights in your display unit; untouched cells are preserved verbatim. INFERRED shape — result includes serverConfirmed: true means Strong accepted the edit; false means the local view is optimistic and unverified (run strong_sync to reconcile); undefined means the confirmation re-sync failed.",
+      inputSchema: {
+        id: z.string(),
+        edits: z
+          .array(
+            z.object({
+              groupIndex: z.number().int().nonnegative(),
+              setIndex: z.number().int().nonnegative(),
+              reps: z.number().int().positive().optional(),
+              weight: z.number().nonnegative().optional(),
+              rpe: z.number().optional(),
+            }),
+          )
+          .min(1),
+      },
+    },
+    async (a: any) => text(await service.updateWorkoutSets(a.id, a.edits)),
+  );
+
+  server.registerTool(
+    "strong_delete_measurement",
+    {
+      description:
+        "Soft-delete a body measurement by id. INFERRED shape — result includes serverConfirmed: true means Strong accepted the delete; false means the local view is optimistic and unverified (run strong_sync to reconcile); undefined means the confirmation re-sync failed.",
+      inputSchema: { id: z.string() },
+    },
+    async (a: any) => text(await service.deleteMeasurement(a.id)),
+  );
 }

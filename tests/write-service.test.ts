@@ -40,13 +40,18 @@ function makeService() {
     put,
     persist: async () => {},
   });
+  // Post-write verification re-syncs "server truth". By default the fake server
+  // echoes the optimistically-updated snapshot (write landed); tests that want
+  // to exercise the unconfirmed / failed-resync paths override `resync`.
+  const resync = vi.fn(async () => snapshot);
   const service = new WriteService({
     engine,
     getWeightUnit: () => "POUNDS",
     clock: makeClock(() => 1784685666000),
     userId: "u",
+    resync,
   });
-  return { service, snapshot, put };
+  return { service, snapshot, put, resync };
 }
 
 describe("WriteService.logWorkout", () => {
@@ -239,5 +244,128 @@ describe("WriteService.updateExerciseName", () => {
     const res = await service.updateExerciseName("ex-barbell", "Renamed Bench");
     expect(res.id).toBe("ex-barbell");
     expect(put.mock.calls[0][0]._embedded.measurement[0].name.custom).toBe("Renamed Bench");
+  });
+});
+
+function seedWorkout(snapshot: Snapshot) {
+  snapshot.entities.log.w1 = {
+    id: "w1",
+    logType: "WORKOUT",
+    isHidden: false,
+    _embedded: {
+      cellSetGroup: [
+        {
+          id: "g1",
+          cellSets: [
+            {
+              id: "s1",
+              cells: [
+                { id: "c1", cellType: "BARBELL_WEIGHT", value: "13.6077711", isHidden: false },
+                { id: "c2", cellType: "REPS", value: "12", isHidden: false },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+describe("WriteService.updateWorkoutSets (inferred + verified)", () => {
+  it("edits the targeted cell, preserves untouched cells verbatim, and confirms via re-sync", async () => {
+    const { service, snapshot, put } = makeService();
+    seedWorkout(snapshot);
+    const res = await service.updateWorkoutSets("w1", [{ groupIndex: 0, setIndex: 0, reps: 8 }]);
+    expect(res.id).toBe("w1");
+    expect(res.serverConfirmed).toBe(true);
+    const cells = put.mock.calls[0][0]._embedded.log[0]._embedded.cellSetGroup[0].cellSets[0].cells;
+    expect(cells[1].value).toBe("8"); // reps edited
+    expect(cells[0].value).toBe("13.6077711"); // untouched weight preserved byte-for-byte
+  });
+
+  it("converts an lb weight edit to kg in the PUT and confirms it", async () => {
+    const { service, snapshot, put } = makeService();
+    seedWorkout(snapshot);
+    const res = await service.updateWorkoutSets("w1", [
+      { groupIndex: 0, setIndex: 0, weight: 100 },
+    ]);
+    const cells = put.mock.calls[0][0]._embedded.log[0]._embedded.cellSetGroup[0].cellSets[0].cells;
+    expect(Number(cells[0].value)).toBeCloseTo(45.359237, 5); // 100 lb → kg
+    expect(res.serverConfirmed).toBe(true);
+  });
+
+  it("reports serverConfirmed:false when re-synced server truth lacks the edit", async () => {
+    const { service, snapshot, resync } = makeService();
+    seedWorkout(snapshot);
+    // server truth still shows the OLD reps (edit did not land)
+    const stale = makeSnap();
+    seedWorkout(stale);
+    resync.mockResolvedValueOnce(stale);
+    const res = await service.updateWorkoutSets("w1", [{ groupIndex: 0, setIndex: 0, reps: 8 }]);
+    expect(res.serverConfirmed).toBe(false);
+  });
+
+  it("reports serverConfirmed:undefined (never throws) when the re-sync fails", async () => {
+    const { service, snapshot, resync } = makeService();
+    seedWorkout(snapshot);
+    resync.mockRejectedValueOnce(new Error("network down"));
+    const res = await service.updateWorkoutSets("w1", [{ groupIndex: 0, setIndex: 0, reps: 8 }]);
+    expect(res.id).toBe("w1");
+    expect(res.serverConfirmed).toBeUndefined();
+  });
+
+  it("throws when the workout id is not visible", async () => {
+    const { service } = makeService();
+    await expect(
+      service.updateWorkoutSets("nope", [{ groupIndex: 0, setIndex: 0, reps: 8 }]),
+    ).rejects.toThrow(/no log.*nope/i);
+  });
+});
+
+describe("WriteService.deleteMeasurement (inferred + verified)", () => {
+  it("flips isHidden on the measuredValue and confirms via re-sync", async () => {
+    const { service, snapshot, put } = makeService();
+    snapshot.entities.measuredValue.v1 = {
+      id: "v1",
+      isHidden: false,
+      measurementTypeValue: "WEIGHT",
+      value: 90.7,
+    };
+    const res = await service.deleteMeasurement("v1");
+    expect(res.deleted).toBe(true);
+    expect(res.serverConfirmed).toBe(true);
+    expect(put.mock.calls[0][0]._embedded.measuredValue[0].isHidden).toBe(true);
+  });
+
+  it("reports serverConfirmed:false when the entity is still visible in server truth", async () => {
+    const { service, snapshot, resync } = makeService();
+    snapshot.entities.measuredValue.v1 = { id: "v1", isHidden: false, value: 90.7 };
+    const stale = makeSnap();
+    stale.entities.measuredValue.v1 = { id: "v1", isHidden: false, value: 90.7 };
+    resync.mockResolvedValueOnce(stale);
+    const res = await service.deleteMeasurement("v1");
+    expect(res.serverConfirmed).toBe(false);
+  });
+
+  it("confirms when the entity is absent from server truth entirely", async () => {
+    const { service, snapshot, resync } = makeService();
+    snapshot.entities.measuredValue.v1 = { id: "v1", isHidden: false, value: 90.7 };
+    resync.mockResolvedValueOnce(makeSnap()); // v1 gone
+    const res = await service.deleteMeasurement("v1");
+    expect(res.serverConfirmed).toBe(true);
+  });
+
+  it("reports serverConfirmed:undefined (never throws) when the re-sync fails", async () => {
+    const { service, snapshot, resync } = makeService();
+    snapshot.entities.measuredValue.v1 = { id: "v1", isHidden: false, value: 90.7 };
+    resync.mockRejectedValueOnce(new Error("network down"));
+    const res = await service.deleteMeasurement("v1");
+    expect(res.deleted).toBe(true);
+    expect(res.serverConfirmed).toBeUndefined();
+  });
+
+  it("throws when the measurement id is not visible", async () => {
+    const { service } = makeService();
+    await expect(service.deleteMeasurement("nope")).rejects.toThrow(/no measuredValue.*nope/i);
   });
 });
