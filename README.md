@@ -16,7 +16,7 @@ Strong is a **sync-document API**, not a REST API: the client GETs a paginated s
 ## Requirements
 
 - Node.js ≥ 20
-- A seeded Strong token pair (see below). **No password is stored** — the server authenticates only with the tokens you provide and refreshes them itself.
+- A Strong account. Sign in once with `strong-mcp login` (below). **Your password is never stored** — login exchanges it for a token pair on the spot, saves only the tokens, and the server refreshes them itself from then on.
 
 ## Install
 
@@ -25,48 +25,46 @@ npm install
 npm run build
 ```
 
+## Sign in
+
+Run the login command once, in a terminal:
+
+```bash
+node dist/index.js login
+```
+
+It prompts for your Strong email and password (the password is not echoed), exchanges them for a token pair via `POST /auth/login`, generates a stable `deviceId`, and writes everything to `token.json` (mode `600`) in the data directory. **Your password is never written to disk.** From then on the server reads `token.json` and refreshes the rotating tokens itself — you only need to log in again if the session fully lapses.
+
 ## Configuration
 
-Configured entirely through environment variables (an [`.env.example`](.env.example) is provided). The token pair is seeded once; the server rotates and persists refreshed tokens to `token.json` in its data directory.
+Once you've logged in, **no secrets are needed** — the server finds `token.json` on its own. The remaining settings are all optional environment variables (see [`.env.example`](.env.example)):
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `STRONG_ACCESS_TOKEN` | yes | Access token captured from an `/auth/login` or `/auth/login/refresh` response. |
-| `STRONG_REFRESH_TOKEN` | yes | Matching refresh token. |
-| `STRONG_DEVICE_ID` | yes | The `deviceId` those tokens were minted with (from the captured request body). |
-| `STRONG_DATA_DIR` | no | Where `token.json` + `snapshot.json` live. Default: `~/.strong-mcp`. |
-| `STRONG_WEIGHT_UNIT` | no | Force display unit `POUNDS` or `KILOGRAMS`. Default: your account preference. |
-| `STRONG_PROXY_URL` | no | HTTP proxy (e.g. Proxyman at `http://localhost:9090`) for debugging. |
+| Variable | Description |
+| --- | --- |
+| `STRONG_DATA_DIR` | Where `token.json` + `snapshot.json` live. Default: `~/.strong-mcp`. |
+| `STRONG_WEIGHT_UNIT` | Force display unit `POUNDS` or `KILOGRAMS`. Default: your account preference. |
+| `STRONG_PROXY_URL` | HTTP proxy (e.g. Proxyman at `http://localhost:9090`) for debugging. |
 
-### Seeding tokens
+### Bootstrapping from a captured token pair (optional)
 
-The tokens are read from a request/response you capture with an HTTPS proxy such as [Proxyman](https://proxyman.io):
-
-1. Proxy the Strong app and trigger a login (or let it refresh).
-2. From the `/auth/login` (or `/auth/login/refresh`) exchange, copy `accessToken`, `refreshToken`, and the request's `deviceId`.
-3. Put them in your environment / MCP client config.
+Instead of `login`, you can seed a token pair captured with an HTTPS proxy such as [Proxyman](https://proxyman.io) by setting `STRONG_ACCESS_TOKEN`, `STRONG_REFRESH_TOKEN`, and `STRONG_DEVICE_ID` together. They're used only to bootstrap the first `token.json`; after that `token.json` is authoritative.
 
 ## Usage
 
-Run over stdio from an MCP client. Example Claude Desktop / Claude Code config:
+Run over stdio from an MCP client. After you've logged in, the Claude Desktop / Claude Code config holds **no secrets** — just a pointer to the built server:
 
 ```json
 {
   "mcpServers": {
     "strong": {
       "command": "node",
-      "args": ["/absolute/path/to/strong-mcp/dist/index.js"],
-      "env": {
-        "STRONG_ACCESS_TOKEN": "…",
-        "STRONG_REFRESH_TOKEN": "…",
-        "STRONG_DEVICE_ID": "…"
-      }
+      "args": ["/absolute/path/to/strong-mcp/dist/index.js"]
     }
   }
 }
 ```
 
-On startup the server does an initial sync (reported on stderr) and then serves the tools below.
+If your `token.json` lives somewhere non-default, add `"env": { "STRONG_DATA_DIR": "/path/to/dir" }`. On startup the server does an initial sync (reported on stderr) and then serves the tools below. If it can't find credentials it exits with `Run \`strong-mcp login\` to sign in`.
 
 ## Tools
 

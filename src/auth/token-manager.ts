@@ -7,11 +7,19 @@ export type RefreshFn = (body: {
   refreshToken: string;
 }) => Promise<{ accessToken: string; refreshToken: string; expiresIn: number }>;
 
+export interface Seed {
+  accessToken: string;
+  refreshToken: string;
+  deviceId: string;
+  userId: string;
+}
+
 interface Options {
   store: TokenStore;
   refreshFn: RefreshFn;
   now: () => number;
-  seed: { accessToken: string; refreshToken: string; deviceId: string; userId: string };
+  /** One-time bootstrap when token.json is absent. When omitted, token.json must exist. */
+  seed?: Seed;
   skewMs?: number;
 }
 
@@ -24,7 +32,7 @@ export class TokenManager {
     this.skewMs = opts.skewMs ?? 60_000;
   }
 
-  /** token.json is source of truth; fall back to the seed once. */
+  /** token.json is source of truth; fall back to the seed once, if provided. */
   private async load(): Promise<TokenState> {
     if (this.state) return this.state;
     const stored = await this.opts.store.read();
@@ -33,6 +41,9 @@ export class TokenManager {
       return stored;
     }
     const { seed } = this.opts;
+    if (!seed) {
+      throw new Error("No stored tokens and no seed. Run `strong-mcp login` to sign in.");
+    }
     const { expMs } = decodeJwt(seed.accessToken);
     this.state = { ...seed, expiresAt: expMs };
     return this.state;
