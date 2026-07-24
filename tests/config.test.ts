@@ -11,14 +11,27 @@ const base = {
 };
 
 describe("loadConfig", () => {
-  it("derives userId from the access token and defaults dataDir", () => {
+  it("builds a token seed from a full token env triple and defaults dataDir", () => {
     const cfg = loadConfig({ ...base, HOME: "/home/j" } as NodeJS.ProcessEnv);
-    expect(cfg.userId).toBe("00000000-0000-4000-8000-000000000000");
     expect(cfg.dataDir).toBe("/home/j/.strong-mcp");
-    expect(cfg.deviceId).toBe(base.STRONG_DEVICE_ID);
+    expect(cfg.seed).toEqual({
+      accessToken: TOKEN,
+      refreshToken: "refresh-abc",
+      deviceId: base.STRONG_DEVICE_ID,
+    });
   });
-  it("throws listing all missing required vars", () => {
-    expect(() => loadConfig({} as NodeJS.ProcessEnv)).toThrow(/STRONG_ACCESS_TOKEN/);
+  it("has no seed when token env vars are absent (login-command path)", () => {
+    const cfg = loadConfig({ HOME: "/home/j" } as NodeJS.ProcessEnv);
+    expect(cfg.seed).toBeUndefined();
+    expect(cfg.dataDir).toBe("/home/j/.strong-mcp");
+  });
+  it("ignores a partial seed (all three token vars required together)", () => {
+    const cfg = loadConfig({
+      STRONG_ACCESS_TOKEN: TOKEN,
+      STRONG_REFRESH_TOKEN: "refresh-abc",
+      HOME: "/home/j",
+    } as NodeJS.ProcessEnv); // missing STRONG_DEVICE_ID
+    expect(cfg.seed).toBeUndefined();
   });
   it("honors STRONG_DATA_DIR and weight unit override", () => {
     const cfg = loadConfig({

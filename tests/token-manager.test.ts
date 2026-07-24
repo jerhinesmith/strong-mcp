@@ -69,4 +69,15 @@ describe("TokenManager", () => {
     const tm = makeManager(refreshFn, now);
     await expect(tm.forceRefresh()).rejects.toThrow(/re-seed/i);
   });
+
+  it("throws a login hint when there is neither a stored token nor a seed", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "strong-tm-"));
+    const tm = new TokenManager({
+      store: new TokenStore(dir),
+      refreshFn: vi.fn(),
+      now: () => 0,
+      // no seed
+    });
+    await expect(tm.getAccessToken()).rejects.toThrow(/strong-mcp login/i);
+  });
 });

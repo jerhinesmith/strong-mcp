@@ -9,13 +9,11 @@ import type { Snapshot } from "../src/types.js";
 const TOKEN =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJUZXN0IFVzZXIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9lbWFpbGFkZHJlc3MiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiVXNlclR5cGUiOiJTdHJvbmdVc2VyIiwiaWF0IjoxNzg0Njg0NDY2LCJleHAiOjE3ODQ2ODU2NjYsImlzcyI6Imh0dHBzOi8vYmFjay5zdHJvbmcuYXBwIiwiYXVkIjoiaHR0cHM6Ly9iYWNrLnN0cm9uZy5hcHAifQ.dummy_signature_not_valid_0000000000000000000000";
 
+const USER_ID = "00000000-0000-4000-8000-000000000000";
 const config: Config = {
-  accessToken: TOKEN,
-  refreshToken: "r",
-  deviceId: "d",
-  userId: "00000000-0000-4000-8000-000000000000",
   dataDir: mkdtempSync(join(tmpdir(), "strong-srv-")),
   weightUnitOverride: "POUNDS",
+  seed: { accessToken: TOKEN, refreshToken: "r", deviceId: "d" },
 };
 
 function res(status: number, body: unknown) {
@@ -74,26 +72,19 @@ describe("resolveWeightUnit", () => {
     },
   });
   const cfg = (override?: "POUNDS" | "KILOGRAMS") =>
-    ({
-      accessToken: "a",
-      refreshToken: "r",
-      deviceId: "d",
-      userId: "u",
-      dataDir: "/x",
-      weightUnitOverride: override,
-    }) as any;
+    ({ dataDir: "/x", weightUnitOverride: override }) as any;
 
   it("prefers the explicit override", () => {
-    expect(resolveWeightUnit(cfg("KILOGRAMS"), snap("POUNDS"))).toBe("KILOGRAMS");
+    expect(resolveWeightUnit(cfg("KILOGRAMS"), snap("POUNDS"), "u")).toBe("KILOGRAMS");
   });
   it("reads the map-shaped preference (captured API shape)", () => {
-    expect(resolveWeightUnit(cfg(), snap({ u: "KILOGRAMS" }))).toBe("KILOGRAMS");
+    expect(resolveWeightUnit(cfg(), snap({ u: "KILOGRAMS" }), "u")).toBe("KILOGRAMS");
   });
   it("reads the plain-string preference (spec-documented shape)", () => {
-    expect(resolveWeightUnit(cfg(), snap("KILOGRAMS"))).toBe("KILOGRAMS");
+    expect(resolveWeightUnit(cfg(), snap("KILOGRAMS"), "u")).toBe("KILOGRAMS");
   });
   it("defaults to POUNDS when preference is absent", () => {
-    expect(resolveWeightUnit(cfg(), snap(undefined))).toBe("POUNDS");
+    expect(resolveWeightUnit(cfg(), snap(undefined), "u")).toBe("POUNDS");
   });
 });
 
