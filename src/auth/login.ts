@@ -1,4 +1,3 @@
-import { ProxyAgent } from "undici";
 import { BASE_URL, CLIENT_HEADERS } from "../constants.js";
 import type { FetchLike } from "../http/client.js";
 import { decodeJwt } from "./jwt.js";
@@ -20,21 +19,24 @@ export interface LoginResult {
 /**
  * Mint a fresh token pair from an email + password via POST /auth/login.
  * Pure over its fetch dependency (mirrors buildRefreshFn) so it can be unit
- * tested with a mock. Never logs the password.
+ * tested with a mock. Never logs the password, and deliberately takes NO proxy:
+ * the login request must never be routed through a TLS-terminating debug proxy
+ * where the plaintext password could be captured.
  */
-export async function login(
-  fetchImpl: FetchLike,
-  creds: LoginCreds,
-  proxyUrl?: string,
-): Promise<LoginResult> {
+export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<LoginResult> {
   const init: any = {
     method: "POST",
     headers: { ...CLIENT_HEADERS, "Content-Type": "application/json" },
     body: JSON.stringify(creds),
   };
-  if (proxyUrl) init.dispatcher = new ProxyAgent(proxyUrl);
 
-  const r = await fetchImpl(`${BASE_URL}/auth/login`, init);
+  let r: { status: number; text: () => Promise<string> };
+  try {
+    r = await fetchImpl(`${BASE_URL}/auth/login`, init);
+  } catch {
+    // Never surface the underlying error: `init` holds the password body.
+    throw new Error("Login failed: could not reach Strong. Check your connection and try again.");
+  }
   const body = await r.text();
   if (r.status === 401 || r.status === 403) {
     throw new Error("Login failed: incorrect email or password.");

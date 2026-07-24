@@ -1,9 +1,10 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { login } from "../src/auth/login.js";
-import { runLogin } from "../src/auth/login-command.js";
+import { makeMutedWriter, runLogin } from "../src/auth/login-command.js";
 import { TokenStore } from "../src/auth/token-store.js";
 
 // Synthetic access token: userId 0000…, exp 1784685666 (matches the other suites).
@@ -63,12 +64,26 @@ describe("login()", () => {
       login(fetchImpl as any, { usernameOrEmail: "me", password: "p", deviceId: "d" }),
     ).rejects.toThrow(/missing accessToken\/refreshToken/i);
   });
+
+  it("wraps a network rejection without leaking the password-bearing request", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("ECONNREFUSED secret-in-body");
+    });
+    await expect(
+      login(fetchImpl as any, { usernameOrEmail: "me", password: "hunter2", deviceId: "d" }),
+    ).rejects.toThrow(/could not reach Strong/i);
+    // the raw underlying error (which had request context) is not surfaced
+    await expect(
+      login(fetchImpl as any, { usernameOrEmail: "me", password: "hunter2", deviceId: "d" }),
+    ).rejects.not.toThrow(/hunter2/);
+  });
 });
 
 describe("runLogin()", () => {
   const prompts = (email: string, password: string) => ({
     question: vi.fn(async () => email),
     password: vi.fn(async () => password),
+    close: vi.fn(),
   });
 
   it("mints a fresh deviceId, persists token.json (readable back), and never returns the password", async () => {
@@ -129,17 +144,44 @@ describe("runLogin()", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("does not write token.json when login fails", async () => {
+  it("does not write token.json when login fails, and still releases prompts", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "strong-login-"));
     const fetchImpl = vi.fn(async () => res(401, {}));
+    const p = prompts("me@example.com", "bad");
     await expect(
-      runLogin({
-        fetchImpl: fetchImpl as any,
-        dataDir,
-        prompts: prompts("me@example.com", "bad"),
-        log: () => {},
-      }),
+      runLogin({ fetchImpl: fetchImpl as any, dataDir, prompts: p, log: () => {} }),
     ).rejects.toThrow(/incorrect email or password/i);
     expect(await new TokenStore(dataDir).read()).toBeNull();
+    expect(p.close).toHaveBeenCalled(); // released even on the failure path
+  });
+
+  it("closes the prompts on the success path (so the process can exit)", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "strong-login-"));
+    const fetchImpl = vi.fn(async () =>
+      res(200, { accessToken: TOKEN, refreshToken: "refresh-1", expiresIn: 1200 }),
+    );
+    const p = prompts("me@example.com", "secret");
+    await runLogin({ fetchImpl: fetchImpl as any, dataDir, prompts: p, log: () => {} });
+    expect(p.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("makeMutedWriter", () => {
+  it("passes through when not muted and swallows when muted", () => {
+    const seen: string[] = [];
+    const sink = new Writable({
+      write(chunk, _enc, cb) {
+        seen.push(chunk.toString());
+        cb();
+      },
+    });
+    const { stream, setMuted } = makeMutedWriter(sink);
+    stream.write("visible-1");
+    setMuted(true);
+    stream.write("SECRET"); // should be swallowed
+    setMuted(false);
+    stream.write("visible-2");
+    expect(seen.join("")).toBe("visible-1visible-2");
+    expect(seen.join("")).not.toContain("SECRET");
   });
 });

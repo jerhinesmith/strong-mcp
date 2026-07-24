@@ -15,7 +15,10 @@ export async function readJson<T>(path: string): Promise<T | null> {
 export async function writeJsonAtomic(path: string, value: unknown, mode?: number): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.tmp`;
-  await writeFile(tmp, JSON.stringify(value, null, 2), "utf8");
+  // Create the temp file with the target mode from the start so secrets are
+  // never briefly world-readable between writeFile and chmod. The chmod stays
+  // as belt-and-suspenders in case the file already existed with a wider mode.
+  await writeFile(tmp, JSON.stringify(value, null, 2), mode !== undefined ? { mode } : "utf8");
   if (mode !== undefined) await chmod(tmp, mode);
   await rename(tmp, path);
 }
