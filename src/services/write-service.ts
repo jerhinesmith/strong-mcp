@@ -185,17 +185,19 @@ export class WriteService {
     id: string,
     edits: { groupIndex: number; setIndex: number; reps?: number; weight?: number; rpe?: number }[],
   ): Promise<{ id: string; serverConfirmed?: boolean }> {
+    // Resolve the unit ONCE so the edit we write and the verification we run
+    // agree even if the preference changed during the mid-write refresh.
     const weightUnit = this.opts.getWeightUnit();
+    const deps = { clock: this.opts.clock, weightUnit };
+    let sent: Entity | undefined; // the document we PUT — baseline for structural verify
     const summary = await this.opts.engine.write((snapshot) => {
       const log = requireVisible(snapshot, "log", id);
-      return {
-        changes: [{ collection: "log", entity: editSetCells(log, edits, this.deps) }],
-        summary: { id },
-      };
+      sent = editSetCells(log, edits, deps); // throws on unmatched field / bad index
+      return { changes: [{ collection: "log", entity: sent }], summary: { id } };
     });
     const fresh = await this.safeResync();
     const serverConfirmed = fresh
-      ? verifySetCells(fresh.entities.log[id], edits, { weightUnit })
+      ? verifySetCells(sent, fresh.entities.log[id], edits, { weightUnit })
       : undefined;
     return { ...summary, serverConfirmed };
   }

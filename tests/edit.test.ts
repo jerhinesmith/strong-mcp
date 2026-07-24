@@ -164,33 +164,111 @@ describe("verifySetCells", () => {
 
   it("confirms an edit round-trips through editSetCells (server truth == what we wrote)", () => {
     const edits = [{ groupIndex: 0, setIndex: 0, reps: 8 }];
-    const written = editSetCells(log(), edits, deps);
-    expect(verifySetCells(written, edits, vdeps)).toBe(true);
+    const orig = log();
+    const written = editSetCells(orig, edits, deps);
+    expect(verifySetCells(orig, written, edits, vdeps)).toBe(true);
   });
 
   it("confirms a weight edit despite kg float storage (epsilon compare)", () => {
     const edits = [{ groupIndex: 0, setIndex: 1, weight: 135 }];
-    const written = editSetCells(log(), edits, deps);
-    expect(verifySetCells(written, edits, vdeps)).toBe(true);
+    const orig = log();
+    const written = editSetCells(orig, edits, deps);
+    expect(verifySetCells(orig, written, edits, vdeps)).toBe(true);
+  });
+
+  it("confirms an RPE edit (edited from a null starting value)", () => {
+    const edits = [{ groupIndex: 0, setIndex: 0, rpe: 9 }];
+    const orig = log();
+    const written = editSetCells(orig, edits, deps);
+    expect(verifySetCells(orig, written, edits, vdeps)).toBe(true);
   });
 
   it("returns false when the reps value does not match the intended edit", () => {
     // server truth still shows the original reps (12), edit asked for 8
-    expect(verifySetCells(log(), [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+    const orig = log();
+    expect(verifySetCells(orig, orig, [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(
+      false,
+    );
+  });
+
+  it("tolerates a numeric server value for reps (string-normalized compare)", () => {
+    const server = log();
+    server._embedded.cellSetGroup[0].cellSets[0].cells[1].value = 8 as any; // numeric, not "8"
+    expect(verifySetCells(log(), server, [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(
+      true,
+    );
   });
 
   it("returns false when the entity is undefined", () => {
-    expect(verifySetCells(undefined, [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+    expect(verifySetCells(log(), undefined, [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(
+      false,
+    );
   });
 
   it("returns false when a group or set index is out of range", () => {
-    expect(verifySetCells(log(), [{ groupIndex: 9, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
-    expect(verifySetCells(log(), [{ groupIndex: 0, setIndex: 9, reps: 8 }], vdeps)).toBe(false);
+    const orig = log();
+    const w = editSetCells(orig, [{ groupIndex: 0, setIndex: 0, reps: 8 }], deps);
+    expect(verifySetCells(orig, w, [{ groupIndex: 9, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+    expect(verifySetCells(orig, w, [{ groupIndex: 0, setIndex: 9, reps: 8 }], vdeps)).toBe(false);
+  });
+
+  it("returns false when server truth has a different SHAPE (collateral corruption)", () => {
+    const edits = [{ groupIndex: 0, setIndex: 0, reps: 8 }];
+    const orig = log();
+    const written = editSetCells(orig, edits, deps);
+    // simulate the server dropping the second working set entirely
+    const mangled = editSetCells(orig, edits, deps) as any;
+    mangled._embedded.cellSetGroup[0].cellSets.pop();
+    expect(verifySetCells(orig, mangled, edits, vdeps)).toBe(false);
+    // sanity: the un-mangled document still confirms
+    expect(verifySetCells(orig, written, edits, vdeps)).toBe(true);
+  });
+
+  it("returns false when the target set has no cell of the edited type", () => {
+    const edits = [{ groupIndex: 0, setIndex: 1, rpe: 8 }]; // set 2 has no RPE cell
+    const orig = log();
+    expect(verifySetCells(orig, orig, edits, vdeps)).toBe(false);
   });
 
   it("skips the rest-timer cellSet just like editSetCells (setIndex 1 == second WORKING set)", () => {
     const edits = [{ groupIndex: 0, setIndex: 1, reps: 3 }];
-    const written = editSetCells(log(), edits, deps);
-    expect(verifySetCells(written, edits, vdeps)).toBe(true);
+    const orig = log();
+    const written = editSetCells(orig, edits, deps);
+    expect(verifySetCells(orig, written, edits, vdeps)).toBe(true);
+  });
+});
+
+describe("editSetCells — refuses no-op edits (inferred write safety)", () => {
+  const one = () => ({
+    id: "w1",
+    _embedded: {
+      cellSetGroup: [
+        {
+          id: "g1",
+          cellSets: [
+            {
+              id: "s1",
+              cells: [
+                { id: "c1", cellType: "BARBELL_WEIGHT", value: "10", isHidden: false },
+                { id: "c2", cellType: "REPS", value: "5", isHidden: false },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  it("throws when an edit targets a cell type the set doesn't have (no silent no-op)", () => {
+    // this set has no RPE cell
+    expect(() => editSetCells(one(), [{ groupIndex: 0, setIndex: 0, rpe: 8 }], deps)).toThrow(
+      /no RPE cell/i,
+    );
+  });
+
+  it("throws when an edit specifies no field at all", () => {
+    expect(() => editSetCells(one(), [{ groupIndex: 0, setIndex: 0 }], deps)).toThrow(
+      /no reps\/weight\/rpe/i,
+    );
   });
 });
