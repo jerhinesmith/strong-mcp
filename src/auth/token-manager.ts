@@ -1,5 +1,5 @@
-import { TokenStore, type TokenState } from "./token-store.js";
 import { decodeJwt } from "./jwt.js";
+import type { TokenState, TokenStore } from "./token-store.js";
 
 export type RefreshFn = (body: {
   deviceId: string;
@@ -56,7 +56,7 @@ export class TokenManager {
 
   private async doRefresh(): Promise<string> {
     const s = await this.load();
-    let res;
+    let res: Awaited<ReturnType<RefreshFn>>;
     try {
       res = await this.opts.refreshFn({
         deviceId: s.deviceId,

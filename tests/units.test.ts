@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { lbToKg, kgToLb, formatLb, toDisplayMeasuredValue, toStoredMeasuredValue, formatKg } from "../src/units.js";
+import { describe, expect, it } from "vitest";
+import {
+  formatKg,
+  formatLb,
+  kgToLb,
+  lbToKg,
+  toDisplayMeasuredValue,
+  toStoredMeasuredValue,
+} from "../src/units.js";
 
 describe("weight conversion", () => {
   it("converts lb → kg exactly as captured", () => {
@@ -15,24 +22,38 @@ describe("weight conversion", () => {
 
 describe("measuredValue display", () => {
   it("WEIGHT is kg→lb", () => {
-    expect(toDisplayMeasuredValue("WEIGHT", 90.718474, "POUNDS")).toEqual({ value: 200, unit: "lb" });
+    expect(toDisplayMeasuredValue("WEIGHT", 90.718474, "POUNDS")).toEqual({
+      value: 200,
+      unit: "lb",
+    });
   });
   it("BODY_FAT_PERCENTAGE is a fraction → percent", () => {
-    expect(toDisplayMeasuredValue("BODY_FAT_PERCENTAGE", 0.05, "POUNDS")).toEqual({ value: 5, unit: "%" });
+    expect(toDisplayMeasuredValue("BODY_FAT_PERCENTAGE", 0.05, "POUNDS")).toEqual({
+      value: 5,
+      unit: "%",
+    });
   });
   it("CALORIC_INTAKE passes through", () => {
-    expect(toDisplayMeasuredValue("CALORIC_INTAKE", 2200, "POUNDS")).toEqual({ value: 2200, unit: "kcal" });
+    expect(toDisplayMeasuredValue("CALORIC_INTAKE", 2200, "POUNDS")).toEqual({
+      value: 2200,
+      unit: "kcal",
+    });
   });
   it("unknown type passes raw through on read", () => {
     expect(toDisplayMeasuredValue("MYSTERY", 42, "POUNDS")).toEqual({ value: 42, unit: "" });
   });
   it("toStoredMeasuredValue throws on unknown type", () => {
-    expect(() => toStoredMeasuredValue("MYSTERY", 42, "POUNDS")).toThrow(/unknown measurement type/i);
+    expect(() => toStoredMeasuredValue("MYSTERY", 42, "POUNDS")).toThrow(
+      /unknown measurement type/i,
+    );
   });
   it("BODY_FAT_PERCENTAGE round-trips store<->display", () => {
     const stored = toStoredMeasuredValue("BODY_FAT_PERCENTAGE", 5, "POUNDS");
     expect(stored).toBe(0.05);
-    expect(toDisplayMeasuredValue("BODY_FAT_PERCENTAGE", stored, "POUNDS")).toEqual({ value: 5, unit: "%" });
+    expect(toDisplayMeasuredValue("BODY_FAT_PERCENTAGE", stored, "POUNDS")).toEqual({
+      value: 5,
+      unit: "%",
+    });
   });
   it("WEIGHT store converts lb->kg and formatKg rounds to 2 decimals", () => {
     expect(toStoredMeasuredValue("WEIGHT", 200, "POUNDS")).toBeCloseTo(90.718474, 6);

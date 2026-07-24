@@ -3,8 +3,14 @@
     "next": { "href": "/api/users/u/?include=template&continuation=CURSOR_NEXT&limit=300" }
   },
   "_embedded": {
-    "measurement": [], "measuredValue": [], "template": [], "log": [],
-    "tag": [], "metric": [], "folder": [], "widget": []
+    "measurement": [],
+    "measuredValue": [],
+    "template": [],
+    "log": [],
+    "tag": [],
+    "metric": [],
+    "folder": [],
+    "widget": []
   },
   "id": "u",
   "preferences": { "weightUnit": { "u": "POUNDS" } }

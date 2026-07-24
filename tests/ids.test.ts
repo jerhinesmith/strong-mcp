@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { newId, makeClock } from "../src/write/ids.js";
+import { describe, expect, it } from "vitest";
+import { makeClock, newId } from "../src/write/ids.js";
 
 describe("ids", () => {
   it("newId returns a v4 UUID", () => {

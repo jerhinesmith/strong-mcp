@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { softDelete } from "../src/write/soft-delete.js";
+import { describe, expect, it } from "vitest";
 import { makeClock } from "../src/write/ids.js";
+import { softDelete } from "../src/write/soft-delete.js";
 
 const clock = makeClock(() => 1784685666000);
 
@@ -16,14 +16,25 @@ describe("softDelete", () => {
 
   it("nested entity: cascades isHidden to log, groups, cellSets, and cells", () => {
     const log = {
-      id: "w1", isHidden: false, logType: "WORKOUT",
+      id: "w1",
+      isHidden: false,
+      logType: "WORKOUT",
       _embedded: {
         cellSetGroup: [
           {
-            id: "g1", isHidden: false,
+            id: "g1",
+            isHidden: false,
             cellSets: [
-              { id: "s1", isHidden: false, cells: [{ id: "c1", cellType: "REPS", value: "12", isHidden: false }] },
-              { id: "s2", isHidden: false, cells: [{ id: "c2", cellType: "REST_TIMER", value: "85", isHidden: false }] },
+              {
+                id: "s1",
+                isHidden: false,
+                cells: [{ id: "c1", cellType: "REPS", value: "12", isHidden: false }],
+              },
+              {
+                id: "s2",
+                isHidden: false,
+                cells: [{ id: "c2", cellType: "REST_TIMER", value: "85", isHidden: false }],
+              },
             ],
           },
         ],

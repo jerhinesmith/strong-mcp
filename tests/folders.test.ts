@@ -1,19 +1,37 @@
-import { describe, it, expect } from "vitest";
-import { defaultFolder, addTemplateToFolder, removeTemplateFromFolder, findFolderContaining } from "../src/write/folders.js";
-import { makeClock } from "../src/write/ids.js";
+import { describe, expect, it } from "vitest";
 import type { Snapshot } from "../src/types.js";
+import {
+  addTemplateToFolder,
+  defaultFolder,
+  findFolderContaining,
+  removeTemplateFromFolder,
+} from "../src/write/folders.js";
+import { makeClock } from "../src/write/ids.js";
 
 const clock = makeClock(() => 1784685666000);
 
 function snap(): Snapshot {
   return {
-    userId: "u", continuation: null, syncedAt: null, preferences: {},
+    userId: "u",
+    continuation: null,
+    syncedAt: null,
+    preferences: {},
     entities: {
-      template: {}, log: {}, measurement: {}, measuredValue: {},
+      template: {},
+      log: {},
+      measurement: {},
+      measuredValue: {},
       folder: {
-        "u-my-templates": { id: "u-my-templates", isHidden: false, name: { en: "My Templates" }, _links: { template: [{ href: "/api/users/u/templates/t0" }] } },
+        "u-my-templates": {
+          id: "u-my-templates",
+          isHidden: false,
+          name: { en: "My Templates" },
+          _links: { template: [{ href: "/api/users/u/templates/t0" }] },
+        },
       },
-      tag: {}, metric: {}, widget: {},
+      tag: {},
+      metric: {},
+      widget: {},
     },
   };
 }
@@ -26,7 +44,8 @@ describe("folders", () => {
     const f = snap().entities.folder["u-my-templates"];
     const out = addTemplateToFolder(f, "u", "t1", clock) as any;
     expect(out._links.template.map((l: any) => l.href)).toEqual([
-      "/api/users/u/templates/t0", "/api/users/u/templates/t1",
+      "/api/users/u/templates/t0",
+      "/api/users/u/templates/t1",
     ]);
     // idempotent
     const again = addTemplateToFolder(out, "u", "t1", clock) as any;

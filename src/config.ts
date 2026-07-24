@@ -1,6 +1,6 @@
-import { z } from "zod";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod";
 import { decodeJwt } from "./auth/jwt.js";
 import type { WeightUnit } from "./units.js";
 
@@ -10,7 +10,10 @@ const Env = z.object({
   STRONG_DEVICE_ID: z.string().min(1, "STRONG_DEVICE_ID is required"),
   STRONG_DATA_DIR: z.preprocess((v) => (v === "" ? undefined : v), z.string().optional()),
   STRONG_PROXY_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
-  STRONG_WEIGHT_UNIT: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["POUNDS", "KILOGRAMS"]).optional()),
+  STRONG_WEIGHT_UNIT: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["POUNDS", "KILOGRAMS"]).optional(),
+  ),
   HOME: z.string().optional(),
 });
 

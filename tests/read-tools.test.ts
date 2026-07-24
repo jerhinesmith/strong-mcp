@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { registerReadTools } from "../src/tools/read-tools.js";
 
 function fakeServer() {
@@ -27,9 +27,14 @@ describe("registerReadTools", () => {
     registerReadTools(server as any, { service, sync: vi.fn(async () => ({ pages: 1 })) });
     expect(Object.keys(server.handlers).sort()).toEqual(
       [
-        "strong_get_exercise_history", "strong_get_workout", "strong_list_exercises",
-        "strong_list_measurements", "strong_list_templates", "strong_list_workouts",
-        "strong_sync", "strong_whoami",
+        "strong_get_exercise_history",
+        "strong_get_workout",
+        "strong_list_exercises",
+        "strong_list_measurements",
+        "strong_list_templates",
+        "strong_list_workouts",
+        "strong_sync",
+        "strong_whoami",
       ].sort(),
     );
   });
@@ -37,7 +42,7 @@ describe("registerReadTools", () => {
   it("strong_list_workouts returns service data as text content", async () => {
     const server = fakeServer();
     registerReadTools(server as any, { service, sync: vi.fn(async () => ({ pages: 1 })) });
-    const out = await server.handlers["strong_list_workouts"]({});
+    const out = await server.handlers.strong_list_workouts({});
     expect(out.content[0].type).toBe("text");
     expect(JSON.parse(out.content[0].text)).toEqual([{ id: "w1", name: "Push", exerciseCount: 1 }]);
   });
@@ -46,7 +51,7 @@ describe("registerReadTools", () => {
     const server = fakeServer();
     const sync = vi.fn(async () => ({ pages: 3 }));
     registerReadTools(server as any, { service, sync });
-    const out = await server.handlers["strong_sync"]({});
+    const out = await server.handlers.strong_sync({});
     expect(sync).toHaveBeenCalled();
     expect(out.content[0].text).toContain("3");
   });

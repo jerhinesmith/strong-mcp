@@ -1,6 +1,6 @@
-import { newId, type Clock } from "./ids.js";
-import { toStoredMeasuredValue, type WeightUnit } from "../units.js";
 import type { Entity } from "../types.js";
+import { toStoredMeasuredValue, type WeightUnit } from "../units.js";
+import { type Clock, newId } from "./ids.js";
 
 export function buildMeasuredValue(
   input: { type: string; value: number },

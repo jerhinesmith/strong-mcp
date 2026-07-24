@@ -1,6 +1,6 @@
 import { ProxyAgent } from "undici";
+import type { RefreshFn, TokenManager } from "../auth/token-manager.js";
 import { BASE_URL, CLIENT_HEADERS } from "../constants.js";
-import type { TokenManager, RefreshFn } from "../auth/token-manager.js";
 
 export type FetchLike = (
   url: string,

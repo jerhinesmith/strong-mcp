@@ -1,5 +1,4 @@
-const NAMEID_CLAIM =
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+const NAMEID_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
 
 export function decodeJwt(token: string): { userId: string; expMs: number } {
   const parts = token.split(".");

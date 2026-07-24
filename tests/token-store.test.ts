@@ -1,15 +1,18 @@
-import { describe, it, expect } from "vitest";
 import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { TokenStore } from "../src/auth/token-store.js";
 
 describe("TokenStore", () => {
   const dir = mkdtempSync(join(tmpdir(), "strong-token-"));
   const store = new TokenStore(dir);
   const state = {
-    accessToken: "a", refreshToken: "r", expiresAt: 123,
-    deviceId: "d", userId: "u",
+    accessToken: "a",
+    refreshToken: "r",
+    expiresAt: 123,
+    deviceId: "d",
+    userId: "u",
   };
 
   it("returns null before anything is written", async () => {
