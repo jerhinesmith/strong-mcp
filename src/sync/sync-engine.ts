@@ -35,6 +35,15 @@ export class SyncEngine {
     }
   }
 
+  /**
+   * Full re-sync from scratch, ignoring the stored continuation cursor.
+   * Returns pristine server truth — used to verify inferred write shapes,
+   * where the optimistically-applied local snapshot cannot be trusted.
+   */
+  async resync(): Promise<{ pages: number; snapshot: Snapshot }> {
+    return this.walk(this.opts.store.empty(), null);
+  }
+
   private async walk(snapshot: Snapshot, startCursor: string | null) {
     let cursor = startCursor;
     let pages = 0;

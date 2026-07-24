@@ -69,6 +69,11 @@ export async function buildServer(
     getWeightUnit: () => resolveWeightUnit(config, snapshot),
     clock: makeClock(now),
     userId: config.userId,
+    resync: async () => {
+      const { snapshot: fresh } = await engine.resync();
+      snapshot = fresh; // swap in-memory snapshot to pristine server truth
+      return snapshot;
+    },
   });
 
   const server = new McpServer({ name: "strong-mcp", version: "0.1.0" });

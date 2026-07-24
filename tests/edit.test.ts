@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editEntityName, editSetCells } from "../src/write/edit.js";
+import { editEntityName, editSetCells, verifySetCells } from "../src/write/edit.js";
 import { makeClock } from "../src/write/ids.js";
 
 const clock = makeClock(() => 1784685666000);
@@ -117,5 +117,80 @@ describe("editSetCells", () => {
     const before = JSON.stringify(input);
     editSetCells(input, [{ groupIndex: 0, setIndex: 0, reps: 99 }], deps);
     expect(JSON.stringify(input)).toBe(before);
+  });
+});
+
+describe("verifySetCells", () => {
+  const vdeps = { weightUnit: "POUNDS" as const };
+  const log = () => ({
+    id: "w1",
+    logType: "WORKOUT",
+    isHidden: false,
+    lastChanged: "2020-01-01T00:00:00.000Z",
+    _embedded: {
+      cellSetGroup: [
+        {
+          id: "g1",
+          cellSets: [
+            {
+              id: "s1",
+              cells: [
+                { id: "c1", cellType: "BARBELL_WEIGHT", value: "13.6077711", isHidden: false },
+                { id: "c2", cellType: "REPS", value: "12", isHidden: false },
+                { id: "c3", cellType: "RPE", value: null, isHidden: false },
+              ],
+            },
+            {
+              id: "r1",
+              cells: [{ id: "c4", cellType: "REST_TIMER", value: "85", isHidden: false }],
+            },
+            {
+              id: "s2",
+              cells: [
+                {
+                  id: "c5",
+                  cellType: "BARBELL_WEIGHT",
+                  value: "18.143694800000002",
+                  isHidden: false,
+                },
+                { id: "c6", cellType: "REPS", value: "10", isHidden: false },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  it("confirms an edit round-trips through editSetCells (server truth == what we wrote)", () => {
+    const edits = [{ groupIndex: 0, setIndex: 0, reps: 8 }];
+    const written = editSetCells(log(), edits, deps);
+    expect(verifySetCells(written, edits, vdeps)).toBe(true);
+  });
+
+  it("confirms a weight edit despite kg float storage (epsilon compare)", () => {
+    const edits = [{ groupIndex: 0, setIndex: 1, weight: 135 }];
+    const written = editSetCells(log(), edits, deps);
+    expect(verifySetCells(written, edits, vdeps)).toBe(true);
+  });
+
+  it("returns false when the reps value does not match the intended edit", () => {
+    // server truth still shows the original reps (12), edit asked for 8
+    expect(verifySetCells(log(), [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+  });
+
+  it("returns false when the entity is undefined", () => {
+    expect(verifySetCells(undefined, [{ groupIndex: 0, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+  });
+
+  it("returns false when a group or set index is out of range", () => {
+    expect(verifySetCells(log(), [{ groupIndex: 9, setIndex: 0, reps: 8 }], vdeps)).toBe(false);
+    expect(verifySetCells(log(), [{ groupIndex: 0, setIndex: 9, reps: 8 }], vdeps)).toBe(false);
+  });
+
+  it("skips the rest-timer cellSet just like editSetCells (setIndex 1 == second WORKING set)", () => {
+    const edits = [{ groupIndex: 0, setIndex: 1, reps: 3 }];
+    const written = editSetCells(log(), edits, deps);
+    expect(verifySetCells(written, edits, vdeps)).toBe(true);
   });
 });

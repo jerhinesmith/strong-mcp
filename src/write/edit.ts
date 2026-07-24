@@ -56,3 +56,37 @@ export function editSetCells(
   clone.lastChanged = deps.clock();
   return clone as Entity;
 }
+
+/**
+ * True iff `entity` (server truth, post-write) already reflects every edit.
+ * Mirrors editSetCells exactly, reusing the same navigation and cell rules, so
+ * verification cannot drift from the edit. Weights compared numerically with a
+ * small epsilon (values are stored as stringified kg floats). A missing entity
+ * or out-of-range index reads as "not confirmed" rather than throwing.
+ */
+export function verifySetCells(
+  entity: Entity | undefined,
+  edits: SetEdit[],
+  deps: { weightUnit: WeightUnit },
+): boolean {
+  if (!entity) return false;
+  const groups = (entity as any)._embedded?.cellSetGroup ?? [];
+  for (const edit of edits) {
+    const group = groups[edit.groupIndex];
+    if (!group) return false;
+    const workingSets = (group.cellSets ?? []).filter((cs: any) => !isRestOnly(cs));
+    const target = workingSets[edit.setIndex];
+    if (!target) return false;
+    for (const cell of target.cells ?? []) {
+      if (edit.reps !== undefined && cell.cellType === "REPS") {
+        if (cell.value !== String(edit.reps)) return false;
+      } else if (edit.rpe !== undefined && cell.cellType === "RPE") {
+        if (cell.value !== String(edit.rpe)) return false;
+      } else if (edit.weight !== undefined && WEIGHT_CELL_TYPES.has(cell.cellType)) {
+        const want = deps.weightUnit === "KILOGRAMS" ? edit.weight : lbToKg(edit.weight);
+        if (Math.abs(Number(cell.value) - want) >= 1e-6) return false;
+      }
+    }
+  }
+  return true;
+}
