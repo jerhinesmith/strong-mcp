@@ -110,15 +110,19 @@ export function makeTtyPrompts(): LoginPrompts {
 
   const ask = (query: string, hidden: boolean): Promise<string> =>
     new Promise((resolve, reject) => {
-      process.stdout.write(query); // written directly so the prompt always shows
-      setMuted(hidden);
-      rl.question("", (answer) => {
+      // Pass the prompt INTO rl.question so readline owns it: in terminal mode
+      // it redraws the line on every keystroke (cursor-to-col-1 + clear), which
+      // would erase a prompt we wrote separately. Muting is enabled only AFTER
+      // the prompt is drawn, so the prompt shows but typed characters don't.
+      setMuted(false);
+      rl.question(query, (answer) => {
         if (hidden) {
           setMuted(false);
           process.stdout.write("\n"); // the swallowed Enter never printed a newline
         }
         resolve(answer);
       });
+      if (hidden) setMuted(true);
       rl.once("error", reject);
     });
 
