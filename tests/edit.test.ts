@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { editEntityName, editSetCells } from "../src/write/edit.js";
 import { makeClock } from "../src/write/ids.js";
 
@@ -7,7 +7,13 @@ const deps = { clock, weightUnit: "POUNDS" as const };
 
 describe("editEntityName", () => {
   it("changes name.custom and bumps lastChanged; preserves the rest", () => {
-    const e = { id: "t1", name: { custom: "Old" }, isHidden: false, extra: 1, lastChanged: "2020-01-01T00:00:00.000Z" };
+    const e = {
+      id: "t1",
+      name: { custom: "Old" },
+      isHidden: false,
+      extra: 1,
+      lastChanged: "2020-01-01T00:00:00.000Z",
+    };
     const out = editEntityName(e, "New", clock) as any;
     expect(out.name.custom).toBe("New");
     expect(out.lastChanged).toBe("2026-07-22T02:01:06.000Z");
@@ -18,23 +24,44 @@ describe("editEntityName", () => {
 
 describe("editSetCells", () => {
   const log = () => ({
-    id: "w1", logType: "WORKOUT", isHidden: false, lastChanged: "2020-01-01T00:00:00.000Z",
-    _embedded: { cellSetGroup: [{
-      id: "g1",
-      cellSets: [
-        { id: "s1", cells: [
-          { id: "c1", cellType: "BARBELL_WEIGHT", value: "13.6077711", isHidden: false }, // 30 lb, raw
-          { id: "c2", cellType: "REPS", value: "12", isHidden: false },
-          { id: "c3", cellType: "RPE", value: null, isHidden: false },
-        ] },
-        { id: "r1", cells: [{ id: "c4", cellType: "REST_TIMER", value: "85", isHidden: false }] },
-        { id: "s2", cells: [
-          { id: "c5", cellType: "BARBELL_WEIGHT", value: "18.143694800000002", isHidden: false }, // 40 lb, raw
-          { id: "c6", cellType: "REPS", value: "10", isHidden: false },
-          { id: "c7", cellType: "RPE", value: null, isHidden: false },
-        ] },
+    id: "w1",
+    logType: "WORKOUT",
+    isHidden: false,
+    lastChanged: "2020-01-01T00:00:00.000Z",
+    _embedded: {
+      cellSetGroup: [
+        {
+          id: "g1",
+          cellSets: [
+            {
+              id: "s1",
+              cells: [
+                { id: "c1", cellType: "BARBELL_WEIGHT", value: "13.6077711", isHidden: false }, // 30 lb, raw
+                { id: "c2", cellType: "REPS", value: "12", isHidden: false },
+                { id: "c3", cellType: "RPE", value: null, isHidden: false },
+              ],
+            },
+            {
+              id: "r1",
+              cells: [{ id: "c4", cellType: "REST_TIMER", value: "85", isHidden: false }],
+            },
+            {
+              id: "s2",
+              cells: [
+                {
+                  id: "c5",
+                  cellType: "BARBELL_WEIGHT",
+                  value: "18.143694800000002",
+                  isHidden: false,
+                }, // 40 lb, raw
+                { id: "c6", cellType: "REPS", value: "10", isHidden: false },
+                { id: "c7", cellType: "RPE", value: null, isHidden: false },
+              ],
+            },
+          ],
+        },
       ],
-    }] },
+    },
   });
 
   it("rewrites only the edited cells; untouched cells keep their raw strings verbatim", () => {
@@ -57,23 +84,31 @@ describe("editSetCells", () => {
   });
 
   it("throws on an out-of-range set index", () => {
-    expect(() => editSetCells(log(), [{ groupIndex: 0, setIndex: 5, reps: 1 }], deps)).toThrow(/range/i);
+    expect(() => editSetCells(log(), [{ groupIndex: 0, setIndex: 5, reps: 1 }], deps)).toThrow(
+      /range/i,
+    );
   });
 
   it("throws on an out-of-range group index", () => {
-    expect(() => editSetCells(log(), [{ groupIndex: 5, setIndex: 0, reps: 1 }], deps)).toThrow(/range/i);
+    expect(() => editSetCells(log(), [{ groupIndex: 5, setIndex: 0, reps: 1 }], deps)).toThrow(
+      /range/i,
+    );
   });
 
   it("writes weight without conversion when weightUnit is KILOGRAMS", () => {
     const kgDeps = { clock, weightUnit: "KILOGRAMS" as const };
     const out = editSetCells(log(), [{ groupIndex: 0, setIndex: 0, weight: 100 }], kgDeps) as any;
-    const weightCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find((c: any) => c.cellType === "BARBELL_WEIGHT");
+    const weightCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find(
+      (c: any) => c.cellType === "BARBELL_WEIGHT",
+    );
     expect(Number(weightCell.value)).toBe(100);
   });
 
   it("writes an rpe value onto the RPE cell", () => {
     const out = editSetCells(log(), [{ groupIndex: 0, setIndex: 0, rpe: 9 }], deps) as any;
-    const rpeCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find((c: any) => c.cellType === "RPE");
+    const rpeCell = out._embedded.cellSetGroup[0].cellSets[0].cells.find(
+      (c: any) => c.cellType === "RPE",
+    );
     expect(rpeCell.value).toBe("9");
   });
 

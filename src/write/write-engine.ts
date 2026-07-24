@@ -1,5 +1,5 @@
-import { buildEnvelope, type Change } from "./envelope.js";
 import type { Snapshot } from "../types.js";
+import { buildEnvelope, type Change } from "./envelope.js";
 
 export interface WriteDeps {
   userId: string;
@@ -22,7 +22,10 @@ export class WriteEngine {
       () => this.runOne(build),
       () => this.runOne(build), // prior failure must not block this write
     );
-    this.tail = run.then(() => {}, () => {}); // swallow so the queue keeps moving
+    this.tail = run.then(
+      () => {},
+      () => {},
+    ); // swallow so the queue keeps moving
     return run;
   }
 

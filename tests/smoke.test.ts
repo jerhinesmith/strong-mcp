@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { SYNC_INCLUDE, COLLECTIONS } from "../src/constants.js";
+import { describe, expect, it } from "vitest";
+import { COLLECTIONS, SYNC_INCLUDE } from "../src/constants.js";
 
 describe("scaffold", () => {
   it("builds the exhaustive include string from all 8 collections", () => {

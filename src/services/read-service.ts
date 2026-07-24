@@ -1,5 +1,5 @@
-import { formatLb, formatKg, toDisplayMeasuredValue, type WeightUnit } from "../units.js";
-import type { Snapshot, Entity } from "../types.js";
+import type { Entity, Snapshot } from "../types.js";
+import { formatKg, formatLb, toDisplayMeasuredValue, type WeightUnit } from "../units.js";
 
 interface Options {
   getSnapshot: () => Snapshot;
@@ -8,7 +8,10 @@ interface Options {
 }
 
 const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT", "BARBELL_WEIGHT", "WEIGHTED_BODYWEIGHT", "WEIGHT",
+  "DUMBBELL_WEIGHT",
+  "BARBELL_WEIGHT",
+  "WEIGHTED_BODYWEIGHT",
+  "WEIGHT",
 ]);
 
 function customName(e: Entity): string {
@@ -65,7 +68,9 @@ export class ReadService {
   }
 
   /** Extracts working sets (weight/reps/rpe) for one exercise group, skipping REST_TIMER-only cellSets. */
-  private setsOf(group: any): { reps: number | null; weight: number | null; unit: string; rpe: number | null }[] {
+  private setsOf(
+    group: any,
+  ): { reps: number | null; weight: number | null; unit: string; rpe: number | null }[] {
     const cellSets = Array.isArray(group?.cellSets) ? group.cellSets : [];
     const out: any[] = [];
     for (const cs of cellSets) {
@@ -121,7 +126,10 @@ export class ReadService {
   }
 
   listTemplates() {
-    return this.visible(this.snap.entities.template).map((t) => ({ id: t.id, name: customName(t) }));
+    return this.visible(this.snap.entities.template).map((t) => ({
+      id: t.id,
+      name: customName(t),
+    }));
   }
 
   listExercises(search?: string) {
@@ -131,13 +139,19 @@ export class ReadService {
       .map((m) => ({
         id: m.id,
         name: customName(m),
-        cellTypes: (Array.isArray(m.cellTypeConfigs) ? (m.cellTypeConfigs as any[]) : []).map((c) => c.cellType),
+        cellTypes: (Array.isArray(m.cellTypeConfigs) ? (m.cellTypeConfigs as any[]) : []).map(
+          (c) => c.cellType,
+        ),
       }))
       .filter((m) => !q || m.name.toLowerCase().includes(q));
   }
 
   getExerciseHistory(exerciseId: string) {
-    const out: { workoutId: string; date?: string; sets: { reps: number | null; weight: number | null; unit: string }[] }[] = [];
+    const out: {
+      workoutId: string;
+      date?: string;
+      sets: { reps: number | null; weight: number | null; unit: string }[];
+    }[] = [];
     for (const w of this.visible(this.snap.entities.log)) {
       for (const g of this.groups(w)) {
         if (measurementIdOf(g) !== exerciseId) continue;
@@ -156,7 +170,11 @@ export class ReadService {
       .filter((v) => !type || v.measurementTypeValue === type)
       .map((v) => {
         const t = String(v.measurementTypeValue);
-        const { value, unit } = toDisplayMeasuredValue(t, Number(v.value), this.opts.getWeightUnit());
+        const { value, unit } = toDisplayMeasuredValue(
+          t,
+          Number(v.value),
+          this.opts.getWeightUnit(),
+        );
         return { id: v.id, type: t, value, unit, date: v.startDate as string | undefined };
       });
   }

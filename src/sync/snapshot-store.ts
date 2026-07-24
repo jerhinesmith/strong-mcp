@@ -1,11 +1,14 @@
 import { join } from "node:path";
-import { readJson, writeJsonAtomic } from "../storage/atomic-json.js";
 import { COLLECTIONS } from "../constants.js";
-import type { Snapshot, EntityMap, CollectionName } from "../types.js";
+import { readJson, writeJsonAtomic } from "../storage/atomic-json.js";
+import type { CollectionName, EntityMap, Snapshot } from "../types.js";
 
 export class SnapshotStore {
   private readonly path: string;
-  constructor(dataDir: string, private readonly userId: string) {
+  constructor(
+    dataDir: string,
+    private readonly userId: string,
+  ) {
     this.path = join(dataDir, "snapshot.json");
   }
 

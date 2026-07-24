@@ -2,9 +2,22 @@
   "_links": { "next": { "href": "/api/users/u/?continuation=CURSOR_2&limit=300" } },
   "_embedded": {
     "template": [],
-    "log": [{ "id": "log-1", "logType": "WORKOUT", "isHidden": false, "name": { "custom": "Push" } }],
-    "measurement": [{ "id": "m-1", "measurementType": "EXERCISE", "isHidden": false, "name": { "custom": "Bench" } }],
-    "measuredValue": [], "tag": [], "metric": [], "folder": [], "widget": []
+    "log": [
+      { "id": "log-1", "logType": "WORKOUT", "isHidden": false, "name": { "custom": "Push" } }
+    ],
+    "measurement": [
+      {
+        "id": "m-1",
+        "measurementType": "EXERCISE",
+        "isHidden": false,
+        "name": { "custom": "Bench" }
+      }
+    ],
+    "measuredValue": [],
+    "tag": [],
+    "metric": [],
+    "folder": [],
+    "widget": []
   },
   "id": "u"
 }

@@ -1,9 +1,12 @@
-import type { Clock } from "./ids.js";
-import { lbToKg, type WeightUnit } from "../units.js";
 import type { Entity } from "../types.js";
+import { lbToKg, type WeightUnit } from "../units.js";
+import type { Clock } from "./ids.js";
 
 const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT", "BARBELL_WEIGHT", "WEIGHTED_BODYWEIGHT", "WEIGHT",
+  "DUMBBELL_WEIGHT",
+  "BARBELL_WEIGHT",
+  "WEIGHTED_BODYWEIGHT",
+  "WEIGHT",
 ]);
 
 export function editEntityName(entity: Entity, name: string, clock: Clock): Entity {
@@ -13,7 +16,13 @@ export function editEntityName(entity: Entity, name: string, clock: Clock): Enti
   return clone as Entity;
 }
 
-interface SetEdit { groupIndex: number; setIndex: number; reps?: number; weight?: number; rpe?: number }
+interface SetEdit {
+  groupIndex: number;
+  setIndex: number;
+  reps?: number;
+  weight?: number;
+  rpe?: number;
+}
 
 function isRestOnly(cellSet: any): boolean {
   const cells = Array.isArray(cellSet?.cells) ? cellSet.cells : [];

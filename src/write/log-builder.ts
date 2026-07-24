@@ -1,14 +1,28 @@
-import { newId, type Clock } from "./ids.js";
-import { lbToKg, type WeightUnit } from "../units.js";
 import type { Entity, Snapshot } from "../types.js";
+import { lbToKg, type WeightUnit } from "../units.js";
+import { type Clock, newId } from "./ids.js";
 
 const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT", "BARBELL_WEIGHT", "WEIGHTED_BODYWEIGHT", "WEIGHT",
+  "DUMBBELL_WEIGHT",
+  "BARBELL_WEIGHT",
+  "WEIGHTED_BODYWEIGHT",
+  "WEIGHT",
 ]);
 
-export interface SetInput { reps: number; weight: number; rpe?: number }
-export interface ExerciseInput { exerciseId: string; sets: SetInput[] }
-export interface BuildLogInput { name: string; templateId?: string; exercises: ExerciseInput[] }
+export interface SetInput {
+  reps: number;
+  weight: number;
+  rpe?: number;
+}
+export interface ExerciseInput {
+  exerciseId: string;
+  sets: SetInput[];
+}
+export interface BuildLogInput {
+  name: string;
+  templateId?: string;
+  exercises: ExerciseInput[];
+}
 
 export function restSeconds(snapshot: Snapshot, exerciseId: string): string {
   const rt = (snapshot.preferences as any)?.restTimer ?? {};
@@ -37,7 +51,10 @@ export function buildLog(
 
   const cellSetGroup = input.exercises.map((ex) => {
     const def = snapshot.entities.measurement[ex.exerciseId];
-    if (!def) throw new Error(`Unknown exercise id "${ex.exerciseId}" (not in snapshot; sync or create it first)`);
+    if (!def)
+      throw new Error(
+        `Unknown exercise id "${ex.exerciseId}" (not in snapshot; sync or create it first)`,
+      );
     const configs = (Array.isArray(def.cellTypeConfigs) ? (def.cellTypeConfigs as any[]) : [])
       .slice()
       .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -46,14 +63,27 @@ export function buildLog(
     for (const set of ex.sets) {
       const cells = configs.map((cfg) => {
         if (cfg.cellType === "REPS") return cell("REPS", String(set.reps));
-        if (cfg.cellType === "RPE") return cell("RPE", set.rpe === undefined ? null : String(set.rpe));
-        if (WEIGHT_CELL_TYPES.has(cfg.cellType)) return cell(cfg.cellType, toKgString(set.weight, weightUnit));
-        throw new Error(`Refusing to write unknown cell type "${cfg.cellType}" for exercise ${ex.exerciseId}`);
+        if (cfg.cellType === "RPE")
+          return cell("RPE", set.rpe === undefined ? null : String(set.rpe));
+        if (WEIGHT_CELL_TYPES.has(cfg.cellType))
+          return cell(cfg.cellType, toKgString(set.weight, weightUnit));
+        throw new Error(
+          `Refusing to write unknown cell type "${cfg.cellType}" for exercise ${ex.exerciseId}`,
+        );
       });
-      cellSets.push({ id: newId(), cellSetTag: null, isCompleted: completed, isHidden: false, cells } as unknown as Entity);
+      cellSets.push({
+        id: newId(),
+        cellSetTag: null,
+        isCompleted: completed,
+        isHidden: false,
+        cells,
+      } as unknown as Entity);
       // trailing rest timer for this working set
       cellSets.push({
-        id: newId(), cellSetTag: null, isCompleted: completed, isHidden: false,
+        id: newId(),
+        cellSetTag: null,
+        isCompleted: completed,
+        isHidden: false,
         cells: [cell("REST_TIMER", restSeconds(snapshot, ex.exerciseId))],
       } as unknown as Entity);
     }
