@@ -1,5 +1,5 @@
-import type { Clock } from "./ids.js";
 import type { Entity, Snapshot } from "../types.js";
+import type { Clock } from "./ids.js";
 
 export const templateHref = (userId: string, templateId: string): string =>
   `/api/users/${userId}/templates/${templateId}`;
@@ -18,7 +18,12 @@ function links(folder: any): { href: string }[] {
   return Array.isArray(l) ? l : [];
 }
 
-export function addTemplateToFolder(folder: Entity, userId: string, templateId: string, clock: Clock): Entity {
+export function addTemplateToFolder(
+  folder: Entity,
+  userId: string,
+  templateId: string,
+  clock: Clock,
+): Entity {
   const clone = structuredClone(folder) as any;
   const href = templateHref(userId, templateId);
   const current = links(clone);
@@ -28,7 +33,12 @@ export function addTemplateToFolder(folder: Entity, userId: string, templateId: 
   return clone as Entity;
 }
 
-export function removeTemplateFromFolder(folder: Entity, userId: string, templateId: string, clock: Clock): Entity {
+export function removeTemplateFromFolder(
+  folder: Entity,
+  userId: string,
+  templateId: string,
+  clock: Clock,
+): Entity {
   const clone = structuredClone(folder) as any;
   const href = templateHref(userId, templateId);
   clone._links = { ...(clone._links ?? {}), template: links(clone).filter((l) => l.href !== href) };
@@ -36,7 +46,11 @@ export function removeTemplateFromFolder(folder: Entity, userId: string, templat
   return clone as Entity;
 }
 
-export function findFolderContaining(snapshot: Snapshot, userId: string, templateId: string): Entity | undefined {
+export function findFolderContaining(
+  snapshot: Snapshot,
+  userId: string,
+  templateId: string,
+): Entity | undefined {
   const href = templateHref(userId, templateId);
   return visibleFolders(snapshot).find((f) => links(f).some((l) => l.href === href));
 }

@@ -1,11 +1,10 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { applyPage, isEmptyPage, nextCursor } from "../src/sync/normalize.js";
 import { SnapshotStore } from "../src/sync/snapshot-store.js";
 
-const load = (f: string) =>
-  JSON.parse(readFileSync(join(__dirname, "fixtures", f), "utf8"));
+const load = (f: string) => JSON.parse(readFileSync(join(__dirname, "fixtures", f), "utf8"));
 
 describe("normalize", () => {
   it("detects an empty (caught-up) page and reads its next cursor", () => {

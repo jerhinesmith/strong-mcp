@@ -1,43 +1,82 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ReadService } from "../src/services/read-service.js";
 import type { Snapshot } from "../src/types.js";
 
 function snap(): Snapshot {
   return {
-    userId: "u", continuation: null, syncedAt: null,
+    userId: "u",
+    continuation: null,
+    syncedAt: null,
     preferences: {},
     entities: {
       template: { t1: { id: "t1", isHidden: false, name: { custom: "PPL" } } },
       log: {
         w1: {
-          id: "w1", isHidden: false, logType: "WORKOUT", startDate: "2026-07-22T02:00:00Z",
+          id: "w1",
+          isHidden: false,
+          logType: "WORKOUT",
+          startDate: "2026-07-22T02:00:00Z",
           name: { custom: "Push" },
-          _embedded: { cellSetGroup: [
-            { id: "g1", _links: { measurement: { href: "/api/users/u/measurements/m1" } },
-              cellSets: [
-                { id: "s1", isHidden: false, cells: [
-                  { cellType: "DUMBBELL_WEIGHT", value: "13.6077711" },
-                  { cellType: "REPS", value: "12" },
-                  { cellType: "RPE", value: null },
-                ] },
-                { id: "s2", isHidden: false, cells: [{ cellType: "REST_TIMER", value: "85" }] },
-              ] },
-          ] },
+          _embedded: {
+            cellSetGroup: [
+              {
+                id: "g1",
+                _links: { measurement: { href: "/api/users/u/measurements/m1" } },
+                cellSets: [
+                  {
+                    id: "s1",
+                    isHidden: false,
+                    cells: [
+                      { cellType: "DUMBBELL_WEIGHT", value: "13.6077711" },
+                      { cellType: "REPS", value: "12" },
+                      { cellType: "RPE", value: null },
+                    ],
+                  },
+                  { id: "s2", isHidden: false, cells: [{ cellType: "REST_TIMER", value: "85" }] },
+                ],
+              },
+            ],
+          },
         },
-        wHidden: { id: "wHidden", isHidden: true, logType: "WORKOUT", name: { custom: "gone" }, _embedded: { cellSetGroup: [] } },
+        wHidden: {
+          id: "wHidden",
+          isHidden: true,
+          logType: "WORKOUT",
+          name: { custom: "gone" },
+          _embedded: { cellSetGroup: [] },
+        },
       },
-      measurement: { m1: { id: "m1", isHidden: false, measurementType: "EXERCISE",
-        name: { custom: "DB Bench" },
-        cellTypeConfigs: [{ cellType: "DUMBBELL_WEIGHT", index: 0 }, { cellType: "REPS", index: 1 }] } },
+      measurement: {
+        m1: {
+          id: "m1",
+          isHidden: false,
+          measurementType: "EXERCISE",
+          name: { custom: "DB Bench" },
+          cellTypeConfigs: [
+            { cellType: "DUMBBELL_WEIGHT", index: 0 },
+            { cellType: "REPS", index: 1 },
+          ],
+        },
+      },
       measuredValue: {
-        v1: { id: "v1", isHidden: false, measurementTypeValue: "WEIGHT", value: 90.718474, startDate: "2026-07-22T02:02:19Z" },
+        v1: {
+          id: "v1",
+          isHidden: false,
+          measurementTypeValue: "WEIGHT",
+          value: 90.718474,
+          startDate: "2026-07-22T02:02:19Z",
+        },
       },
-      folder: {}, tag: {}, metric: {}, widget: {},
+      folder: {},
+      tag: {},
+      metric: {},
+      widget: {},
     },
   };
 }
 
-const svc = () => new ReadService({ getSnapshot: snap, getWeightUnit: () => "POUNDS", userId: "u" });
+const svc = () =>
+  new ReadService({ getSnapshot: snap, getWeightUnit: () => "POUNDS", userId: "u" });
 
 describe("ReadService", () => {
   it("whoami reports unit + visible counts (hidden excluded)", () => {
@@ -67,12 +106,18 @@ describe("ReadService", () => {
   it("builds exercise history across workouts", () => {
     const hist = svc().getExerciseHistory("m1");
     expect(hist).toEqual([
-      { workoutId: "w1", date: "2026-07-22T02:00:00Z", sets: [{ reps: 12, weight: 30, unit: "lb" }] },
+      {
+        workoutId: "w1",
+        date: "2026-07-22T02:00:00Z",
+        sets: [{ reps: 12, weight: 30, unit: "lb" }],
+      },
     ]);
   });
 
   it("lists body measurements with type-aware display", () => {
     const m = svc().listMeasurements();
-    expect(m).toEqual([{ id: "v1", type: "WEIGHT", value: 200, unit: "lb", date: "2026-07-22T02:02:19Z" }]);
+    expect(m).toEqual([
+      { id: "v1", type: "WEIGHT", value: 200, unit: "lb", date: "2026-07-22T02:02:19Z" },
+    ]);
   });
 });

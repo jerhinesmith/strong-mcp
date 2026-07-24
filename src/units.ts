@@ -39,6 +39,8 @@ export function toStoredMeasuredValue(
     case "CALORIC_INTAKE":
       return display;
     default:
-      throw new Error(`Refusing to write unknown measurement type "${type}" (unknown value scaling)`);
+      throw new Error(
+        `Refusing to write unknown measurement type "${type}" (unknown value scaling)`,
+      );
   }
 }

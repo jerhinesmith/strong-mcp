@@ -1,7 +1,7 @@
 import { SYNC_INCLUDE, SYNC_LIMIT } from "../constants.js";
+import type { Snapshot } from "../types.js";
 import { applyPage, isEmptyPage, nextCursor } from "./normalize.js";
 import type { SnapshotStore } from "./snapshot-store.js";
-import type { Snapshot } from "../types.js";
 
 interface HttpGet {
   getJson<T>(path: string): Promise<T>;

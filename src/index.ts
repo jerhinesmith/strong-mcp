@@ -1,8 +1,8 @@
-import { fetch } from "undici";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fetch } from "undici";
 import { loadConfig } from "./config.js";
-import { buildServer } from "./server.js";
 import type { FetchLike } from "./http/client.js";
+import { buildServer } from "./server.js";
 
 async function main() {
   const config = loadConfig(process.env);

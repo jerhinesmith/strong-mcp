@@ -3,8 +3,14 @@ export const KG_PER_LB = 0.45359237;
 export const SYNC_LIMIT = 300;
 
 export const COLLECTIONS = [
-  "template", "log", "measurement", "widget",
-  "tag", "folder", "metric", "measuredValue",
+  "template",
+  "log",
+  "measurement",
+  "widget",
+  "tag",
+  "folder",
+  "metric",
+  "measuredValue",
 ] as const;
 
 export const SYNC_INCLUDE = COLLECTIONS.map((c) => `include=${c}`).join("&");

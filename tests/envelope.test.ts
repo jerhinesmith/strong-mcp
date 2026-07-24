@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildEnvelope } from "../src/write/envelope.js";
 
 describe("buildEnvelope", () => {
@@ -15,7 +15,16 @@ describe("buildEnvelope", () => {
     expect(env._embedded.folder).toEqual([{ id: "f1" }]);
     // all 8 collections present; the untouched ones are empty arrays
     expect(Object.keys(env._embedded).sort()).toEqual(
-      ["folder", "log", "measuredValue", "measurement", "metric", "tag", "template", "widget"].sort(),
+      [
+        "folder",
+        "log",
+        "measuredValue",
+        "measurement",
+        "metric",
+        "tag",
+        "template",
+        "widget",
+      ].sort(),
     );
     expect(env._embedded.measurement).toEqual([]);
     expect(env._embedded.widget).toEqual([]);

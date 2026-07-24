@@ -1,18 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Config } from "./config.js";
-import { TokenStore } from "./auth/token-store.js";
 import { TokenManager } from "./auth/token-manager.js";
-import { StrongHttpClient, buildRefreshFn, type FetchLike } from "./http/client.js";
+import { TokenStore } from "./auth/token-store.js";
+import type { Config } from "./config.js";
+import { buildRefreshFn, type FetchLike, StrongHttpClient } from "./http/client.js";
+import { ReadService } from "./services/read-service.js";
+import { WriteService } from "./services/write-service.js";
 import { SnapshotStore } from "./sync/snapshot-store.js";
 import { SyncEngine } from "./sync/sync-engine.js";
-import { ReadService } from "./services/read-service.js";
 import { registerReadTools } from "./tools/read-tools.js";
-import { WriteEngine } from "./write/write-engine.js";
-import { WriteService } from "./services/write-service.js";
 import { registerWriteTools } from "./tools/write-tools.js";
-import { makeClock } from "./write/ids.js";
 import type { Snapshot } from "./types.js";
 import type { WeightUnit } from "./units.js";
+import { makeClock } from "./write/ids.js";
+import { WriteEngine } from "./write/write-engine.js";
 
 export function resolveWeightUnit(config: Config, snapshot: Snapshot): WeightUnit {
   if (config.weightUnitOverride) return config.weightUnitOverride;
@@ -58,7 +58,7 @@ export async function buildServer(
   const writeEngine = new WriteEngine({
     userId: config.userId,
     refresh: async () => {
-      await sync();      // delta-sync; swaps the in-memory `snapshot`
+      await sync(); // delta-sync; swaps the in-memory `snapshot`
       return snapshot;
     },
     put: (envelope) => http.putUserDoc(config.userId, envelope),

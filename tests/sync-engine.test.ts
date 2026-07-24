@@ -1,17 +1,25 @@
-import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { SnapshotStore } from "../src/sync/snapshot-store.js";
 import { SyncEngine } from "../src/sync/sync-engine.js";
 
 const store = () => new SnapshotStore(mkdtempSync(join(tmpdir(), "strong-se-")), "u");
 
 const page = (logs: any[], nextCursor: string | null) => ({
-  _links: nextCursor ? { next: { href: `/api/users/u/?continuation=${nextCursor}&limit=300` } } : {},
+  _links: nextCursor
+    ? { next: { href: `/api/users/u/?continuation=${nextCursor}&limit=300` } }
+    : {},
   _embedded: {
-    template: [], log: logs, measurement: [], measuredValue: [],
-    tag: [], metric: [], folder: [], widget: [],
+    template: [],
+    log: logs,
+    measurement: [],
+    measuredValue: [],
+    tag: [],
+    metric: [],
+    folder: [],
+    widget: [],
   },
   id: "u",
 });
@@ -54,7 +62,7 @@ describe("SyncEngine", () => {
       .mockResolvedValueOnce(page([], "C2")); // empty → stop
     const engine = new SyncEngine({ http: { getJson }, store: s, userId: "u" });
     const { snapshot } = await engine.sync();
-    expect(snapshot.entities.log["a"]).toBeDefined();
+    expect(snapshot.entities.log.a).toBeDefined();
     // first call used the stale cursor; second (fallback) did not
     expect(getJson.mock.calls[0][0]).toContain("continuation=STALE");
     expect(getJson.mock.calls[1][0]).not.toContain("continuation=");

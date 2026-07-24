@@ -1,21 +1,29 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { buildLog, restSeconds } from "../src/write/log-builder.js";
-import { makeClock } from "../src/write/ids.js";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import type { Snapshot } from "../src/types.js";
+import { makeClock } from "../src/write/ids.js";
+import { buildLog, restSeconds } from "../src/write/log-builder.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const exDef = JSON.parse(readFileSync(join(here, "fixtures", "exercise-def-barbell.json"), "utf8"));
 
 function snap(): Snapshot {
   return {
-    userId: "u", continuation: null, syncedAt: null,
+    userId: "u",
+    continuation: null,
+    syncedAt: null,
     preferences: { restTimer: { u: 90, "ex-barbell": 120 } },
     entities: {
-      template: {}, log: {}, measurement: { "ex-barbell": exDef },
-      measuredValue: {}, folder: {}, tag: {}, metric: {}, widget: {},
+      template: {},
+      log: {},
+      measurement: { "ex-barbell": exDef },
+      measuredValue: {},
+      folder: {},
+      tag: {},
+      metric: {},
+      widget: {},
     },
   };
 }
@@ -23,9 +31,24 @@ const deps = { clock: makeClock(() => 1784685666000), weightUnit: "POUNDS" as co
 
 describe("buildLog (WORKOUT)", () => {
   it("emits a workout with cellTypeConfig-ordered cells and alternating rest timers", () => {
-    const log = buildLog("WORKOUT",
-      { name: "Push", templateId: "t1", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }, { reps: 5, weight: 135, rpe: 8 }] }] },
-      snap(), deps) as any;
+    const log = buildLog(
+      "WORKOUT",
+      {
+        name: "Push",
+        templateId: "t1",
+        exercises: [
+          {
+            exerciseId: "ex-barbell",
+            sets: [
+              { reps: 5, weight: 135 },
+              { reps: 5, weight: 135, rpe: 8 },
+            ],
+          },
+        ],
+      },
+      snap(),
+      deps,
+    ) as any;
 
     expect(log.logType).toBe("WORKOUT");
     expect(log.name).toEqual({ custom: "Push" });
@@ -58,40 +81,64 @@ describe("buildLog (WORKOUT)", () => {
 
   it("throws when the referenced exercise id is not in the snapshot", () => {
     expect(() =>
-      buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "missing", sets: [{ reps: 1, weight: 1 }] }] }, snap(), deps),
+      buildLog(
+        "WORKOUT",
+        { name: "x", exercises: [{ exerciseId: "missing", sets: [{ reps: 1, weight: 1 }] }] },
+        snap(),
+        deps,
+      ),
     ).toThrow(/missing/);
   });
 
   it("throws (refuse rule) when a cellTypeConfig has an unknown cell type", () => {
     const s = snap();
     s.entities.measurement["ex-weird"] = {
-      id: "ex-weird", isHidden: false, measurementType: "EXERCISE",
+      id: "ex-weird",
+      isHidden: false,
+      measurementType: "EXERCISE",
       name: { custom: "Weird" },
       cellTypeConfigs: [{ cellType: "DISTANCE", mandatory: true, index: 0 }],
     } as any;
     expect(() =>
-      buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-weird", sets: [{ reps: 1, weight: 1 }] }] }, s, deps),
+      buildLog(
+        "WORKOUT",
+        { name: "x", exercises: [{ exerciseId: "ex-weird", sets: [{ reps: 1, weight: 1 }] }] },
+        s,
+        deps,
+      ),
     ).toThrow(/unknown cell type|DISTANCE|Refusing/i);
   });
 
   it("emits cells in cellTypeConfig index order even when configs are given out of order", () => {
     const s = snap();
     s.entities.measurement["ex-unordered"] = {
-      id: "ex-unordered", isHidden: false, measurementType: "EXERCISE",
+      id: "ex-unordered",
+      isHidden: false,
+      measurementType: "EXERCISE",
       name: { custom: "Unordered" },
       cellTypeConfigs: [
         { cellType: "REPS", index: 1 },
         { cellType: "BARBELL_WEIGHT", index: 0 },
       ],
     } as any;
-    const log = buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-unordered", sets: [{ reps: 5, weight: 100 }] }] }, s, deps) as any;
+    const log = buildLog(
+      "WORKOUT",
+      { name: "x", exercises: [{ exerciseId: "ex-unordered", sets: [{ reps: 5, weight: 100 }] }] },
+      s,
+      deps,
+    ) as any;
     const cells = log._embedded.cellSetGroup[0].cellSets[0].cells;
     expect(cells.map((c: any) => c.cellType)).toEqual(["BARBELL_WEIGHT", "REPS"]);
   });
 
   it("passes weight through unconverted when weightUnit is KILOGRAMS", () => {
     const kgDeps = { clock: makeClock(() => 1784685666000), weightUnit: "KILOGRAMS" as const };
-    const log = buildLog("WORKOUT", { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 100 }] }] }, snap(), kgDeps) as any;
+    const log = buildLog(
+      "WORKOUT",
+      { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 100 }] }] },
+      snap(),
+      kgDeps,
+    ) as any;
     const weightCell = log._embedded.cellSetGroup[0].cellSets[0].cells[0];
     expect(Number(weightCell.value)).toBe(100);
   });
@@ -99,7 +146,12 @@ describe("buildLog (WORKOUT)", () => {
 
 describe("buildLog (TEMPLATE)", () => {
   it("has no start/end date and sets are not completed", () => {
-    const t = buildLog("TEMPLATE", { name: "PPL", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }] }, snap(), deps) as any;
+    const t = buildLog(
+      "TEMPLATE",
+      { name: "PPL", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }] },
+      snap(),
+      deps,
+    ) as any;
     expect(t.logType).toBe("TEMPLATE");
     expect(t.startDate).toBeUndefined();
     expect(t._embedded.cellSetGroup[0].cellSets[0].isCompleted).toBe(false);
@@ -110,7 +162,8 @@ describe("restSeconds", () => {
   it("prefers exercise-specific, then user default, then 85", () => {
     expect(restSeconds(snap(), "ex-barbell")).toBe("120");
     expect(restSeconds(snap(), "other")).toBe("90");
-    const s = snap(); s.preferences = {};
+    const s = snap();
+    s.preferences = {};
     expect(restSeconds(s, "x")).toBe("85");
   });
 });

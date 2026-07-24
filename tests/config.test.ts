@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 
 const TOKEN =
@@ -21,12 +21,22 @@ describe("loadConfig", () => {
     expect(() => loadConfig({} as NodeJS.ProcessEnv)).toThrow(/STRONG_ACCESS_TOKEN/);
   });
   it("honors STRONG_DATA_DIR and weight unit override", () => {
-    const cfg = loadConfig({ ...base, STRONG_DATA_DIR: "/data", STRONG_WEIGHT_UNIT: "KILOGRAMS" } as NodeJS.ProcessEnv);
+    const cfg = loadConfig({
+      ...base,
+      STRONG_DATA_DIR: "/data",
+      STRONG_WEIGHT_UNIT: "KILOGRAMS",
+    } as NodeJS.ProcessEnv);
     expect(cfg.dataDir).toBe("/data");
     expect(cfg.weightUnitOverride).toBe("KILOGRAMS");
   });
   it("treats empty-string optional vars as absent (golden-path .env copy)", () => {
-    const cfg = loadConfig({ ...base, HOME: "/home/j", STRONG_DATA_DIR: "", STRONG_PROXY_URL: "", STRONG_WEIGHT_UNIT: "" } as NodeJS.ProcessEnv);
+    const cfg = loadConfig({
+      ...base,
+      HOME: "/home/j",
+      STRONG_DATA_DIR: "",
+      STRONG_PROXY_URL: "",
+      STRONG_WEIGHT_UNIT: "",
+    } as NodeJS.ProcessEnv);
     expect(cfg.dataDir).toBe("/home/j/.strong-mcp");
     expect(cfg.proxyUrl).toBeUndefined();
     expect(cfg.weightUnitOverride).toBeUndefined();

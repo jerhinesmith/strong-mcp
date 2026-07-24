@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { StrongHttpClient } from "../src/http/client.js";
 
 function res(status: number, body: unknown) {
@@ -8,8 +8,8 @@ function res(status: number, body: unknown) {
 const fakeTM = () => {
   let n = 0;
   return {
-    getAccessToken: vi.fn(async () => "access-" + n),
-    forceRefresh: vi.fn(async () => "access-" + ++n),
+    getAccessToken: vi.fn(async () => `access-${n}`),
+    forceRefresh: vi.fn(async () => `access-${++n}`),
   } as any;
 };
 
