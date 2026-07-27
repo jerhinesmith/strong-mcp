@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { login } from "../src/auth/login.js";
+import { login, loginRaw } from "../src/auth/login.js";
 import { makeMutedWriter, runLogin } from "../src/auth/login-command.js";
 import { TokenStore } from "../src/auth/token-store.js";
 
@@ -48,7 +48,16 @@ describe("login()", () => {
     const fetchImpl = vi.fn(async () => res(401, { error: "unauthorized" }));
     await expect(
       login(fetchImpl as any, { usernameOrEmail: "me", password: "bad", deviceId: "d" }),
-    ).rejects.toThrow(/incorrect email or password/i);
+    ).rejects.toThrow(/incorrect username\/email or password/i);
+  });
+
+  it("maps a 403 MFA_REQUIRED to a distinct, actionable error", async () => {
+    const fetchImpl = vi.fn(async () =>
+      res(403, { code: "MFA_REQUIRED", description: "MFA required by policy" }),
+    );
+    await expect(
+      login(fetchImpl as any, { usernameOrEmail: "me", password: "right", deviceId: "d" }),
+    ).rejects.toThrow(/requires email verification \(MFA\)/i);
   });
 
   it("maps other non-2xx to an HTTP error", async () => {
@@ -63,6 +72,16 @@ describe("login()", () => {
     await expect(
       login(fetchImpl as any, { usernameOrEmail: "me", password: "p", deviceId: "d" }),
     ).rejects.toThrow(/missing accessToken\/refreshToken/i);
+  });
+
+  it("loginRaw returns the untouched status + body", async () => {
+    const fetchImpl = vi.fn(async () => res(403, '{"challenge":"OTP_REQUIRED"}'));
+    const out = await loginRaw(fetchImpl as any, {
+      usernameOrEmail: "me",
+      password: "p",
+      deviceId: "d",
+    });
+    expect(out).toEqual({ status: 403, body: '{"challenge":"OTP_REQUIRED"}' });
   });
 
   it("wraps a network rejection without leaking the password-bearing request", async () => {
@@ -131,7 +150,7 @@ describe("runLogin()", () => {
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body).deviceId).toBe("keep-this-device");
   });
 
-  it("rejects an empty email before calling the API", async () => {
+  it("rejects an empty username/email before calling the API", async () => {
     const fetchImpl = vi.fn();
     await expect(
       runLogin({
@@ -140,7 +159,7 @@ describe("runLogin()", () => {
         prompts: prompts("   ", "secret"),
         log: () => {},
       }),
-    ).rejects.toThrow(/email is required/i);
+    ).rejects.toThrow(/username or email is required/i);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -150,7 +169,7 @@ describe("runLogin()", () => {
     const p = prompts("me@example.com", "bad");
     await expect(
       runLogin({ fetchImpl: fetchImpl as any, dataDir, prompts: p, log: () => {} }),
-    ).rejects.toThrow(/incorrect email or password/i);
+    ).rejects.toThrow(/incorrect username\/email or password/i);
     expect(await new TokenStore(dataDir).read()).toBeNull();
     expect(p.close).toHaveBeenCalled(); // released even on the failure path
   });

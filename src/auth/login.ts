@@ -17,19 +17,20 @@ export interface LoginResult {
 }
 
 /**
- * Mint a fresh token pair from an email + password via POST /auth/login.
- * Pure over its fetch dependency (mirrors buildRefreshFn) so it can be unit
- * tested with a mock. Never logs the password, and deliberately takes NO proxy:
- * the login request must never be routed through a TLS-terminating debug proxy
- * where the plaintext password could be captured.
+ * POST /auth/login and return the raw status + body untouched, leaving status
+ * interpretation to the caller. Deliberately takes NO proxy: the password must
+ * never be routed through a TLS-terminating debug proxy where it could be
+ * captured in cleartext.
  */
-export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<LoginResult> {
+export async function loginRaw(
+  fetchImpl: FetchLike,
+  creds: LoginCreds,
+): Promise<{ status: number; body: string }> {
   const init: any = {
     method: "POST",
     headers: { ...CLIENT_HEADERS, "Content-Type": "application/json" },
     body: JSON.stringify(creds),
   };
-
   let r: { status: number; text: () => Promise<string> };
   try {
     r = await fetchImpl(`${BASE_URL}/auth/login`, init);
@@ -37,12 +38,32 @@ export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<Lo
     // Never surface the underlying error: `init` holds the password body.
     throw new Error("Login failed: could not reach Strong. Check your connection and try again.");
   }
-  const body = await r.text();
-  if (r.status === 401 || r.status === 403) {
-    throw new Error("Login failed: incorrect email or password.");
+  return { status: r.status, body: await r.text() };
+}
+
+/**
+ * Mint a fresh token pair from an email + password via POST /auth/login.
+ * Pure over its fetch dependency (mirrors buildRefreshFn) so it can be unit
+ * tested with a mock. Never logs the password, and deliberately takes NO proxy:
+ * the login request must never be routed through a TLS-terminating debug proxy
+ * where the plaintext password could be captured.
+ */
+export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<LoginResult> {
+  const { status, body } = await loginRaw(fetchImpl, creds);
+  // Strong enforces email MFA for unrecognized devices and returns 403 with
+  // code MFA_REQUIRED. That flow completes on a hosted web page and can't be
+  // finished headlessly, so surface it distinctly from a bad-password 401.
+  if (status === 403 && /MFA_REQUIRED/.test(body)) {
+    throw new Error(
+      "Login failed: Strong requires email verification (MFA) for this device, which this CLI " +
+        "cannot complete. Seed a token pair via STRONG_ACCESS_TOKEN/STRONG_REFRESH_TOKEN/STRONG_DEVICE_ID instead.",
+    );
   }
-  if (r.status < 200 || r.status >= 300) {
-    throw new Error(`Login failed: HTTP ${r.status}`);
+  if (status === 401 || status === 403) {
+    throw new Error("Login failed: incorrect username/email or password.");
+  }
+  if (status < 200 || status >= 300) {
+    throw new Error(`Login failed: HTTP ${status}`);
   }
 
   let data: { accessToken?: unknown; refreshToken?: unknown };

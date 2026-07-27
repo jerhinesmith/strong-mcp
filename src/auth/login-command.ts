@@ -33,8 +33,8 @@ export async function runLogin(deps: RunLoginDeps): Promise<{ userId: string }> 
   const log = deps.log ?? ((m: string) => process.stderr.write(`${m}\n`));
 
   try {
-    const usernameOrEmail = (await deps.prompts.question("Strong email: ")).trim();
-    if (!usernameOrEmail) throw new Error("Email is required.");
+    const usernameOrEmail = (await deps.prompts.question("Strong username or email: ")).trim();
+    if (!usernameOrEmail) throw new Error("Username or email is required.");
     const password = await deps.prompts.password("Password: ");
     if (!password) throw new Error("Password is required.");
 
