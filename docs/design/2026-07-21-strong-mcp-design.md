@@ -321,7 +321,7 @@ All captured via Proxyman against the real account. Base: `https://back.strong.a
 | 1 | Login | `POST /auth/login` | `{usernameOrEmail, password, deviceId}` → tokens |
 | 2 | Refresh | `POST /auth/login/refresh` | `{deviceId, accessToken, refreshToken}` → rotated tokens |
 | 3 | Logout | `POST /auth/logout` | `{accessToken, refreshToken}` |
-| 4 | Sync page | `GET /api/users/{id}/?continuation=…&limit=300&include=…` | `_links.next` carries next token; all-empty page = caught up |
+| 4 | Sync page | `GET /api/users/{id}/?continuation=…&limit=200&include=…` | `_links.next` carries next token; all-empty page = caught up. ⚠️ `continuation` must be present even when empty on page 1 — omitting the param entirely (rather than sending `continuation=`) makes the server return a flat, silently-truncated doc with no `_links.next` at all, dropping everything past `limit` per collection with no signal that more exists (verified live 2026-09-18). `limit` above 200 is now rejected (`"Limit must be between 1 and 200."`) — was 300 at design time. |
 | 5 | Template create | `PUT /api/users/{id}` | `_embedded.template[]` + updated `folder` |
 | 6 | Template update | `PUT /api/users/{id}` | full-entity replace |
 | 7 | Template delete | `PUT /api/users/{id}` | cascading `isHidden:true` |
