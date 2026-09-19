@@ -39,6 +39,8 @@ describe("SyncEngine", () => {
     expect(snapshot.continuation).toBe("C3");
     // full sync (no stored cursor) must NOT send a continuation on page 1
     expect(getJson.mock.calls[0][0]).not.toContain("continuation=");
+    // Strong's API rejects anything above 200 ("Limit must be between 1 and 200.")
+    expect(getJson.mock.calls[0][0]).toContain("limit=200");
   });
 
   it("stops when a page has no next link", async () => {
