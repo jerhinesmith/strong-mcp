@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { login } from "../src/auth/login.js";
+import { login, MfaRequiredError } from "../src/auth/login.js";
 import { makeMutedWriter, runLogin } from "../src/auth/login-command.js";
 import { TokenStore } from "../src/auth/token-store.js";
 
@@ -46,6 +46,39 @@ describe("login()", () => {
 
   it("maps 401 to a clear wrong-credentials error", async () => {
     const fetchImpl = vi.fn(async () => res(401, { error: "unauthorized" }));
+    await expect(
+      login(fetchImpl as any, { usernameOrEmail: "me", password: "bad", deviceId: "d" }),
+    ).rejects.toThrow(/incorrect email or password/i);
+  });
+
+  it("throws MfaRequiredError on a 403 MFA_REQUIRED challenge, carrying the challenge id + redirectUrl", async () => {
+    const fetchImpl = vi.fn(async () =>
+      res(403, {
+        messageToUser: "A verification code has been sent to your email.",
+        redirectUrl: "https://auth.strongapp.com/auth/mfa/c84d1c63-edad-4ecd-83d4-c226df184636",
+        challenge: "c84d1c63-edad-4ecd-83d4-c226df184636",
+        expiresAt: "2026-09-18T23:57:19.5075057Z",
+        code: "MFA_REQUIRED",
+        description: "MFA required by policy",
+      }),
+    );
+    let caught: unknown;
+    try {
+      await login(fetchImpl as any, { usernameOrEmail: "me", password: "p", deviceId: "d" });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(MfaRequiredError);
+    const mfaErr = caught as MfaRequiredError;
+    expect(mfaErr.challenge).toBe("c84d1c63-edad-4ecd-83d4-c226df184636");
+    expect(mfaErr.redirectUrl).toBe(
+      "https://auth.strongapp.com/auth/mfa/c84d1c63-edad-4ecd-83d4-c226df184636",
+    );
+    expect(mfaErr.messageToUser).toBe("A verification code has been sent to your email.");
+  });
+
+  it("maps a plain 403 (no MFA_REQUIRED code) to a wrong-credentials error", async () => {
+    const fetchImpl = vi.fn(async () => res(403, { error: "forbidden" }));
     await expect(
       login(fetchImpl as any, { usernameOrEmail: "me", password: "bad", deviceId: "d" }),
     ).rejects.toThrow(/incorrect email or password/i);
@@ -153,6 +186,74 @@ describe("runLogin()", () => {
     ).rejects.toThrow(/incorrect email or password/i);
     expect(await new TokenStore(dataDir).read()).toBeNull();
     expect(p.close).toHaveBeenCalled(); // released even on the failure path
+  });
+
+  it("prompts for and submits an MFA code when Strong challenges the login", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "strong-login-"));
+    const CHALLENGE = "c84d1c63-edad-4ecd-83d4-c226df184636";
+    const REDIRECT_URL = `https://auth.strongapp.com/auth/mfa/${CHALLENGE}`;
+    const formHtml = `<form><input name="__RequestVerificationToken" type="hidden" value="anti-forgery" /></form>`;
+
+    const answers = ["me@example.com", "770319"];
+    const p = {
+      question: vi.fn(async () => answers.shift() as string),
+      password: vi.fn(async () => "secret"),
+      close: vi.fn(),
+    };
+
+    const calls: Array<{ url: string; init: any }> = [];
+    const fetchImpl = vi.fn(async (url: string, init: any) => {
+      calls.push({ url, init });
+      if (calls.length === 1) {
+        return {
+          status: 403,
+          text: async () =>
+            JSON.stringify({
+              code: "MFA_REQUIRED",
+              challenge: CHALLENGE,
+              redirectUrl: REDIRECT_URL,
+              messageToUser: "A verification code has been sent to your email.",
+            }),
+          headers: { getSetCookie: () => [] },
+        };
+      }
+      if (calls.length === 2) {
+        return {
+          status: 200,
+          text: async () => formHtml,
+          headers: { getSetCookie: () => ["session=abc; Path=/"] },
+        };
+      }
+      if (calls.length === 3) {
+        return {
+          status: 200,
+          text: async () =>
+            `<script>window.location = "https://strong-mcp.local/mfa-callback?challenge=${CHALLENGE}&token=abc-token";</script>`,
+          headers: { getSetCookie: () => [] },
+        };
+      }
+      return {
+        status: 200,
+        text: async () =>
+          JSON.stringify({ accessToken: TOKEN, refreshToken: "refresh-mfa", expiresIn: 1200 }),
+        headers: { getSetCookie: () => [] },
+      };
+    });
+
+    const out = await runLogin({ fetchImpl: fetchImpl as any, dataDir, prompts: p, log: () => {} });
+    expect(out.userId).toBe(USER_ID);
+
+    const stored = await new TokenStore(dataDir).read();
+    expect(stored).toMatchObject({
+      accessToken: TOKEN,
+      refreshToken: "refresh-mfa",
+      userId: USER_ID,
+    });
+    expect(p.question).toHaveBeenCalledTimes(2); // email, then the emailed code
+
+    // the deviceId that got MFA-verified is the same one that's now persisted
+    const loginBody = JSON.parse(calls[0].init.body);
+    expect(loginBody.deviceId).toBe(stored?.deviceId);
   });
 
   it("closes the prompts on the success path (so the process can exit)", async () => {

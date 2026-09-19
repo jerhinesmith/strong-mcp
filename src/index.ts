@@ -1,6 +1,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { fetch } from "undici";
 import { makeTtyPrompts, runLogin } from "./auth/login-command.js";
+import type { FetchLikeWithHeaders } from "./auth/mfa.js";
 import { TokenStore } from "./auth/token-store.js";
 import { loadConfig } from "./config.js";
 import type { FetchLike } from "./http/client.js";
@@ -17,7 +18,7 @@ async function runLoginCommand() {
     existingDeviceId = undefined;
   }
   await runLogin({
-    fetchImpl: fetch as unknown as FetchLike,
+    fetchImpl: fetch as unknown as FetchLikeWithHeaders,
     dataDir: config.dataDir,
     prompts: makeTtyPrompts(),
     existingDeviceId,

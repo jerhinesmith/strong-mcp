@@ -17,6 +17,22 @@ export interface LoginResult {
 }
 
 /**
+ * Thrown when POST /auth/login returns a 403 with `code: "MFA_REQUIRED"`
+ * instead of a plain auth failure. `redirectUrl` is the auth.strongapp.com
+ * page that issues the code-verification form for this `challenge`.
+ */
+export class MfaRequiredError extends Error {
+  constructor(
+    public readonly challenge: string,
+    public readonly redirectUrl: string,
+    public readonly messageToUser: string,
+  ) {
+    super(messageToUser);
+    this.name = "MfaRequiredError";
+  }
+}
+
+/**
  * Mint a fresh token pair from an email + password via POST /auth/login.
  * Pure over its fetch dependency (mirrors buildRefreshFn) so it can be unit
  * tested with a mock. Never logs the password, and deliberately takes NO proxy:
@@ -38,6 +54,16 @@ export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<Lo
     throw new Error("Login failed: could not reach Strong. Check your connection and try again.");
   }
   const body = await r.text();
+  if (r.status === 403) {
+    const challenge = tryParseMfaChallenge(body);
+    if (challenge) {
+      throw new MfaRequiredError(
+        challenge.challenge,
+        challenge.redirectUrl,
+        challenge.messageToUser,
+      );
+    }
+  }
   if (r.status === 401 || r.status === 403) {
     throw new Error("Login failed: incorrect email or password.");
   }
@@ -62,5 +88,23 @@ export async function login(fetchImpl: FetchLike, creds: LoginCreds): Promise<Lo
     userId,
     deviceId: creds.deviceId,
     expiresAt: expMs,
+  };
+}
+
+function tryParseMfaChallenge(
+  body: string,
+): { challenge: string; redirectUrl: string; messageToUser: string } | undefined {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+  if (parsed.code !== "MFA_REQUIRED" || typeof parsed.challenge !== "string") return undefined;
+  return {
+    challenge: parsed.challenge,
+    redirectUrl: typeof parsed.redirectUrl === "string" ? parsed.redirectUrl : "",
+    messageToUser:
+      typeof parsed.messageToUser === "string" ? parsed.messageToUser : "Verification required.",
   };
 }

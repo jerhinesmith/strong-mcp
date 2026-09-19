@@ -35,6 +35,8 @@ node dist/index.js login
 
 It prompts for your Strong email and password (the password is not echoed), exchanges them for a token pair via `POST /auth/login`, generates a stable `deviceId`, and writes everything to `token.json` (mode `600`) in the data directory. **Your password is never written to disk.** From then on the server reads `token.json` and refreshes the rotating tokens itself — you only need to log in again if the session fully lapses.
 
+If Strong doesn't recognize the `deviceId` (e.g. your first login from this machine), it'll email you a verification code instead of logging in directly. The CLI prompts for that code and completes the challenge automatically — you don't need to do anything in the Strong app itself.
+
 ## Configuration
 
 Once you've logged in, **no secrets are needed** — the server finds `token.json` on its own. The remaining settings are all optional environment variables (see [`.env.example`](.env.example)):

@@ -23,7 +23,7 @@ This single fact drives the entire architecture: to construct any write, the ser
 
 The following was **verified** from captured Proxyman traffic (see §11):
 
-- Auth: login, refresh, logout
+- Auth: login, refresh, logout, email-code MFA challenge (new-device gate)
 - Continuation sync, including the "caught up" signal
 - Template create / update / delete
 - Workout **log** and **delete**
@@ -331,6 +331,9 @@ All captured via Proxyman against the real account. Base: `https://back.strong.a
 | 11 | Exercise create | `PUT /api/users/{id}` | `measurement measurementType:EXERCISE`, `cellTypeConfigs`, `_links.tag[]` |
 | 12 | Exercise edit | `PUT /api/users/{id}` | full-entity replace |
 | 13 | Exercise archive | `PUT /api/users/{id}` | `isHidden:true` (flat) |
+| 14 | MFA challenge | `POST /auth/login` → **403** | Fires on an unrecognized `deviceId`. Body: `{code:"MFA_REQUIRED", challenge, redirectUrl, messageToUser, expiresAt}` instead of tokens. `redirectUrl` is a `back.strong.app`-style host on **`auth.strongapp.com`** — a separate ASP.NET Core service, not the main API. |
+| 15 | MFA code form | `GET`/`POST` `{redirectUrl}?redirectUrl={callback}` | Classic Razor form (not JSON): GET returns HTML with an antiforgery cookie + `__RequestVerificationToken` hidden field; POST is `application/x-www-form-urlencoded` `{Code, ChallengeId, RedirectUrl, __RequestVerificationToken}`. On success, the 200 HTML body embeds `window.location = "{callback}?challenge=…&token=…"` (client-side redirect, no `Location` header) — the `token` there is a long ASP.NET Data-Protection blob, **not** the short emailed code. Attempts are rate-limited per challenge (shared counter with #16) — "Too many attempts" invalidates it. |
+| 16 | MFA verify | `POST /auth/mfa/verify` | `{token, challenge}` (the pair pulled out of #15's redirect) → same token-pair shape as login. This is the actual login completion; #14+#15 only redeem the emailed code into `token`. |
 
 **Write envelope (all writes):**
 ```jsonc
