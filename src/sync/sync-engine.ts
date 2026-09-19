@@ -18,7 +18,11 @@ export class SyncEngine {
 
   private pagePath(cursor: string | null): string {
     const base = `/api/users/${this.opts.userId}/?${SYNC_INCLUDE}&limit=${SYNC_LIMIT}`;
-    return cursor ? `${base}&continuation=${encodeURIComponent(cursor)}` : base;
+    // `continuation` must be sent even when empty: omitting it entirely (as
+    // opposed to sending `continuation=`) makes Strong return a flat,
+    // silently-truncated document with no `_links.next` at all — losing
+    // everything past `limit` per collection with no signal that more exists.
+    return `${base}&continuation=${cursor ? encodeURIComponent(cursor) : ""}`;
   }
 
   async sync(): Promise<{ pages: number; snapshot: Snapshot }> {

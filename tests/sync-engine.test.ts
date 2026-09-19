@@ -37,8 +37,11 @@ describe("SyncEngine", () => {
     expect(pages).toBe(3);
     expect(Object.keys(snapshot.entities.log).sort()).toEqual(["a", "b"]);
     expect(snapshot.continuation).toBe("C3");
-    // full sync (no stored cursor) must NOT send a continuation on page 1
-    expect(getJson.mock.calls[0][0]).not.toContain("continuation=");
+    // Verified live: omitting `continuation` entirely (even on page 1) makes
+    // Strong return a flat, silently-truncated doc with NO `_links.next` at
+    // all — so a fresh/full sync must still send an EMPTY continuation to
+    // get real pagination, or everything past `limit` per collection is lost.
+    expect(getJson.mock.calls[0][0]).toContain("continuation=");
     // Strong's API rejects anything above 200 ("Limit must be between 1 and 200.")
     expect(getJson.mock.calls[0][0]).toContain("limit=200");
   });
@@ -64,8 +67,9 @@ describe("SyncEngine", () => {
       .mockResolvedValueOnce(page([], "C2")); // empty → stop
     const engine = new SyncEngine({ http: { getJson }, store: s, userId: "u" });
     const { snapshot } = await engine.resync();
-    // page 1 must NOT carry the stale cursor
-    expect(getJson.mock.calls[0][0]).not.toContain("continuation=");
+    // page 1 must carry an EMPTY continuation (to get real pagination), not the stale cursor
+    expect(getJson.mock.calls[0][0]).not.toContain("continuation=STALE");
+    expect(getJson.mock.calls[0][0]).toContain("continuation=");
     // pristine server truth only — the stale local entity is gone
     expect(Object.keys(snapshot.entities.log)).toEqual(["fresh"]);
   });
@@ -84,8 +88,9 @@ describe("SyncEngine", () => {
     const engine = new SyncEngine({ http: { getJson }, store: s, userId: "u" });
     const { snapshot } = await engine.sync();
     expect(snapshot.entities.log.a).toBeDefined();
-    // first call used the stale cursor; second (fallback) did not
+    // first call used the stale cursor; second (fallback) sends an empty one instead
     expect(getJson.mock.calls[0][0]).toContain("continuation=STALE");
-    expect(getJson.mock.calls[1][0]).not.toContain("continuation=");
+    expect(getJson.mock.calls[1][0]).not.toContain("continuation=STALE");
+    expect(getJson.mock.calls[1][0]).toContain("continuation=");
   });
 });
