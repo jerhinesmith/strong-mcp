@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
-import type { FetchLike } from "../http/client.js";
-import { login } from "./login.js";
+import { login, MfaRequiredError } from "./login.js";
+import type { FetchLikeWithHeaders } from "./mfa.js";
+import { submitMfaCode } from "./mfa.js";
 import { TokenStore } from "./token-store.js";
 
 export interface LoginPrompts {
@@ -15,7 +16,7 @@ export interface LoginPrompts {
 }
 
 export interface RunLoginDeps {
-  fetchImpl: FetchLike;
+  fetchImpl: FetchLikeWithHeaders;
   dataDir: string;
   prompts: LoginPrompts;
   /** Existing deviceId to reuse (from a prior token.json); else a new one is minted. */
@@ -43,7 +44,21 @@ export async function runLogin(deps: RunLoginDeps): Promise<{ userId: string }> 
 
     // NOTE: login() takes no proxy — the password must never go through a
     // TLS-terminating debug proxy.
-    const result = await login(deps.fetchImpl, { usernameOrEmail, password, deviceId });
+    let result: Awaited<ReturnType<typeof login>>;
+    try {
+      result = await login(deps.fetchImpl, { usernameOrEmail, password, deviceId });
+    } catch (err) {
+      if (!(err instanceof MfaRequiredError)) throw err;
+      log(err.messageToUser);
+      const code = (await deps.prompts.question("Verification code: ")).trim();
+      if (!code) throw new Error("Verification code is required.");
+      result = await submitMfaCode(deps.fetchImpl, {
+        redirectUrl: err.redirectUrl,
+        challenge: err.challenge,
+        code,
+        deviceId,
+      });
+    }
 
     const store = new TokenStore(deps.dataDir);
     await store.write({
