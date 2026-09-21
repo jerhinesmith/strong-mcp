@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { registerWriteTools } from "../src/tools/write-tools.js";
 
 function fakeServer() {
   const handlers: Record<string, Function> = {};
+  const defs: Record<string, any> = {};
   return {
     handlers,
-    registerTool(name: string, _def: unknown, handler: Function) {
+    defs,
+    registerTool(name: string, def: any, handler: Function) {
       handlers[name] = handler;
+      defs[name] = def;
     },
   };
 }
@@ -55,6 +59,47 @@ describe("registerWriteTools", () => {
     });
     expect(service.logWorkout).toHaveBeenCalled();
     expect(JSON.parse(out.content[0].text)).toEqual({ id: "w1", name: "Push", exercises: 1 });
+  });
+
+  it("strong_log_workout's schema allows omitting weight (bodyweight exercises)", () => {
+    const s = fakeServer();
+    registerWriteTools(s as any, service);
+    const schema = z.object(s.defs.strong_log_workout.inputSchema);
+    const result = schema.safeParse({
+      name: "Legs",
+      exercises: [{ exerciseId: "ex", sets: [{ reps: 15, rpe: 7 }] }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("strong_log_workout's schema accepts optional startDate/endDate", () => {
+    const s = fakeServer();
+    registerWriteTools(s as any, service);
+    const schema = z.object(s.defs.strong_log_workout.inputSchema);
+    const result = schema.safeParse({
+      name: "Legs",
+      startDate: "2026-09-21T00:00:00.000Z",
+      endDate: "2026-09-21T00:40:00.000Z",
+      exercises: [{ exerciseId: "ex", sets: [{ reps: 12, weight: 30 }] }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("strong_log_workout forwards startDate/endDate to the service", async () => {
+    const s = fakeServer();
+    registerWriteTools(s as any, service);
+    await s.handlers.strong_log_workout({
+      name: "Push",
+      startDate: "2026-09-21T00:00:00.000Z",
+      endDate: "2026-09-21T00:40:00.000Z",
+      exercises: [{ exerciseId: "ex", sets: [{ reps: 5, weight: 135 }] }],
+    });
+    expect(service.logWorkout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startDate: "2026-09-21T00:00:00.000Z",
+        endDate: "2026-09-21T00:40:00.000Z",
+      }),
+    );
   });
 
   it("strong_update_workout forwards id + edits and returns serverConfirmed", async () => {

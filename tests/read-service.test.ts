@@ -16,6 +16,7 @@ function snap(): Snapshot {
           isHidden: false,
           logType: "WORKOUT",
           startDate: "2026-07-22T02:00:00Z",
+          endDate: "2026-07-22T02:35:00Z",
           name: { custom: "Push" },
           _embedded: {
             cellSetGroup: [
@@ -96,6 +97,12 @@ describe("ReadService", () => {
     const w = svc().getWorkout("w1")!;
     expect(w.exercises[0].name).toBe("DB Bench");
     expect(w.exercises[0].sets).toEqual([{ reps: 12, weight: 30, unit: "lb", rpe: null }]);
+  });
+
+  it("includes startDate/endDate on a returned workout", () => {
+    const w = svc().getWorkout("w1")!;
+    expect(w.startDate).toBe("2026-07-22T02:00:00Z");
+    expect(w.endDate).toBe("2026-07-22T02:35:00Z");
   });
 
   it("searches exercises by name and exposes cell types", () => {

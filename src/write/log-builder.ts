@@ -11,7 +11,8 @@ const WEIGHT_CELL_TYPES = new Set([
 
 export interface SetInput {
   reps: number;
-  weight: number;
+  /** Omit for exercises with no weight cell type (e.g. bodyweight movements). */
+  weight?: number;
   rpe?: number;
 }
 export interface ExerciseInput {
@@ -22,6 +23,9 @@ export interface BuildLogInput {
   name: string;
   templateId?: string;
   exercises: ExerciseInput[];
+  /** ISO timestamps for a WORKOUT log; default to "now" (both) when omitted. */
+  startDate?: string;
+  endDate?: string;
 }
 
 export function restSeconds(snapshot: Snapshot, exerciseId: string): string {
@@ -65,8 +69,14 @@ export function buildLog(
         if (cfg.cellType === "REPS") return cell("REPS", String(set.reps));
         if (cfg.cellType === "RPE")
           return cell("RPE", set.rpe === undefined ? null : String(set.rpe));
-        if (WEIGHT_CELL_TYPES.has(cfg.cellType))
+        if (WEIGHT_CELL_TYPES.has(cfg.cellType)) {
+          if (set.weight === undefined) {
+            throw new Error(
+              `Exercise ${ex.exerciseId} requires a weight value for cellType "${cfg.cellType}", but none was given.`,
+            );
+          }
           return cell(cfg.cellType, toKgString(set.weight, weightUnit));
+        }
         throw new Error(
           `Refusing to write unknown cell type "${cfg.cellType}" for exercise ${ex.exerciseId}`,
         );
@@ -111,8 +121,8 @@ export function buildLog(
     _embedded: { cellSetGroup },
   };
   if (kind === "WORKOUT") {
-    base.startDate = ts;
-    base.endDate = ts;
+    base.startDate = input.startDate ?? ts;
+    base.endDate = input.endDate ?? ts;
     if (input.templateId) {
       base._links.template = { href: `/api/users/${userId}/templates/${input.templateId}` };
     }
