@@ -8,7 +8,8 @@ const text = (data: unknown) => ({
 
 const setSchema = {
   reps: z.number().int().positive(),
-  weight: z.number().nonnegative(),
+  /** Omit for exercises with no weight cell type (e.g. bodyweight movements). */
+  weight: z.number().nonnegative().optional(),
   rpe: z.number().optional(),
 };
 const exerciseSchema = { exerciseId: z.string(), sets: z.array(z.object(setSchema)).min(1) };
@@ -23,10 +24,12 @@ export function registerWriteTools(server: McpServer, service: WriteService): vo
     "strong_log_workout",
     {
       description:
-        "Log a completed workout. Exercises referenced by definition id (use strong_list_exercises). Weights in your display unit.",
+        "Log a completed workout. Exercises referenced by definition id (use strong_list_exercises). Weights in your display unit; omit weight on a set for bodyweight-only exercises. startDate/endDate (ISO) default to now if omitted — pass them for an accurate duration.",
       inputSchema: {
         name: z.string(),
         templateId: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         exercises: z.array(z.object(exerciseSchema)).min(1),
       },
     },

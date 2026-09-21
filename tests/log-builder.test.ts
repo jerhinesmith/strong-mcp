@@ -131,6 +131,55 @@ describe("buildLog (WORKOUT)", () => {
     expect(cells.map((c: any) => c.cellType)).toEqual(["BARBELL_WEIGHT", "REPS"]);
   });
 
+  it("uses provided startDate/endDate instead of the clock when given", () => {
+    const log = buildLog(
+      "WORKOUT",
+      {
+        name: "Legs",
+        startDate: "2026-09-21T00:00:00.000Z",
+        endDate: "2026-09-21T00:40:00.000Z",
+        exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5, weight: 135 }] }],
+      },
+      snap(),
+      deps,
+    ) as any;
+    expect(log.startDate).toBe("2026-09-21T00:00:00.000Z");
+    expect(log.endDate).toBe("2026-09-21T00:40:00.000Z");
+  });
+
+  it("omits the weight cell when the exercise has no weight cell type and none is given", () => {
+    const s = snap();
+    s.entities.measurement["ex-bodyweight"] = {
+      id: "ex-bodyweight",
+      isHidden: false,
+      measurementType: "EXERCISE",
+      name: { custom: "Glute Bridge" },
+      cellTypeConfigs: [
+        { cellType: "REPS", index: 0 },
+        { cellType: "RPE", index: 1 },
+      ],
+    } as any;
+    const log = buildLog(
+      "WORKOUT",
+      { name: "Legs", exercises: [{ exerciseId: "ex-bodyweight", sets: [{ reps: 15, rpe: 7 }] }] },
+      s,
+      deps,
+    ) as any;
+    const cells = log._embedded.cellSetGroup[0].cellSets[0].cells;
+    expect(cells.map((c: any) => c.cellType)).toEqual(["REPS", "RPE"]);
+  });
+
+  it("throws a clear error when a weight cell type is required but no weight was given", () => {
+    expect(() =>
+      buildLog(
+        "WORKOUT",
+        { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ reps: 5 }] }] },
+        snap(),
+        deps,
+      ),
+    ).toThrow(/requires a weight/i);
+  });
+
   it("passes weight through unconverted when weightUnit is KILOGRAMS", () => {
     const kgDeps = { clock: makeClock(() => 1784685666000), weightUnit: "KILOGRAMS" as const };
     const log = buildLog(

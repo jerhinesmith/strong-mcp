@@ -118,6 +118,8 @@ export class ReadService {
     return {
       id: w.id,
       name: customName(w),
+      startDate: w.startDate as string | undefined,
+      endDate: w.endDate as string | undefined,
       exercises: this.groups(w).map((g) => ({
         name: this.exerciseName(measurementIdOf(g)),
         sets: this.setsOf(g),
