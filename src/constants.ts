@@ -27,3 +27,12 @@ export const CLIENT_HEADERS: Record<string, string> = {
   "User-Agent": "Strong iOS",
   Accept: "application/json",
 };
+
+/** Cell types that hold a weight (stored in kg). OTHER_WEIGHT covers machines, cables and plate-loaded. */
+export const WEIGHT_CELL_TYPES: ReadonlySet<string> = new Set([
+  "DUMBBELL_WEIGHT",
+  "BARBELL_WEIGHT",
+  "WEIGHTED_BODYWEIGHT",
+  "OTHER_WEIGHT",
+  "WEIGHT",
+]);

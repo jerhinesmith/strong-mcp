@@ -1,19 +1,16 @@
+import { WEIGHT_CELL_TYPES } from "../constants.js";
 import type { Entity, Snapshot } from "../types.js";
 import { lbToKg, type WeightUnit } from "../units.js";
 import { type Clock, newId } from "./ids.js";
 
-const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT",
-  "BARBELL_WEIGHT",
-  "WEIGHTED_BODYWEIGHT",
-  "WEIGHT",
-]);
-
 export interface SetInput {
-  reps: number;
-  /** Omit for exercises with no weight cell type (e.g. bodyweight movements). */
+  /** Omit on a TEMPLATE to leave the cell blank; required on a WORKOUT for REPS exercises. */
+  reps?: number;
+  /** Omit for exercises with no weight cell type (e.g. bodyweight movements), or on a TEMPLATE to leave it blank. */
   weight?: number;
   rpe?: number;
+  /** Seconds, for DURATION exercises (planks, hangs). Omit on a TEMPLATE to leave it blank. */
+  seconds?: number;
 }
 export interface ExerciseInput {
   exerciseId: string;
@@ -65,17 +62,30 @@ export function buildLog(
 
     const cellSets: Entity[] = [];
     for (const set of ex.sets) {
+      // A template set may leave values blank (Strong stores null); a logged
+      // workout must say what was actually done.
+      const required = (cellType: string, value: number | undefined, label: string) => {
+        if (value === undefined && completed) {
+          throw new Error(
+            `Exercise ${ex.exerciseId} requires a ${label} value for cellType "${cellType}", but none was given.`,
+          );
+        }
+        return value;
+      };
       const cells = configs.map((cfg) => {
-        if (cfg.cellType === "REPS") return cell("REPS", String(set.reps));
+        if (cfg.cellType === "REPS") {
+          const reps = required("REPS", set.reps, "reps");
+          return cell("REPS", reps === undefined ? null : String(reps));
+        }
         if (cfg.cellType === "RPE")
           return cell("RPE", set.rpe === undefined ? null : String(set.rpe));
+        if (cfg.cellType === "DURATION") {
+          const secs = required("DURATION", set.seconds, "seconds");
+          return cell("DURATION", secs === undefined ? null : String(secs));
+        }
         if (WEIGHT_CELL_TYPES.has(cfg.cellType)) {
-          if (set.weight === undefined) {
-            throw new Error(
-              `Exercise ${ex.exerciseId} requires a weight value for cellType "${cfg.cellType}", but none was given.`,
-            );
-          }
-          return cell(cfg.cellType, toKgString(set.weight, weightUnit));
+          const weight = required(cfg.cellType, set.weight, "weight");
+          return cell(cfg.cellType, weight === undefined ? null : toKgString(weight, weightUnit));
         }
         throw new Error(
           `Refusing to write unknown cell type "${cfg.cellType}" for exercise ${ex.exerciseId}`,
