@@ -9,7 +9,10 @@ function snap(): Snapshot {
     syncedAt: null,
     preferences: {},
     entities: {
-      template: { t1: { id: "t1", isHidden: false, name: { custom: "PPL" } } },
+      template: {
+        t1: { id: "t1", isHidden: false, name: { custom: "PPL" } },
+        tArchived: { id: "tArchived", isArchived: true, name: { custom: "Old" } },
+      },
       log: {
         w1: {
           id: "w1",
@@ -91,6 +94,14 @@ describe("ReadService", () => {
     const list = svc().listWorkouts();
     expect(list.map((w) => w.id)).toEqual(["w1"]);
     expect(list[0]).toMatchObject({ name: "Push", exerciseCount: 1 });
+  });
+
+  it("lists templates excluding archived ones unless asked", () => {
+    expect(svc().listTemplates()).toEqual([{ id: "t1", name: "PPL" }]);
+    expect(svc().listTemplates({ includeArchived: true })).toEqual([
+      { id: "t1", name: "PPL" },
+      { id: "tArchived", name: "Old", archived: true },
+    ]);
   });
 
   it("returns a workout with sets in display units (kg→lb), skipping rest timers", () => {

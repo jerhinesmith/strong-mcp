@@ -78,7 +78,7 @@ If your `token.json` lives somewhere non-default, add `"env": { "STRONG_DATA_DIR
 | `strong_whoami` | Current user id, unit preference, last sync time, and entity counts. |
 | `strong_list_workouts` | List recent workouts (newest first); optional `limit`. |
 | `strong_get_workout` | One workout in full, with sets in display units. |
-| `strong_list_templates` | List saved workout templates. |
+| `strong_list_templates` | List saved workout templates (archived ones only with `includeArchived`). |
 | `strong_list_exercises` | List exercise definitions; optional name `search`. |
 | `strong_get_exercise_history` | All logged sets for one exercise over time. |
 | `strong_list_measurements` | List body measurements; optional `type` filter (e.g. `WEIGHT`). |
@@ -89,7 +89,7 @@ If your `token.json` lives somewhere non-default, add `"env": { "STRONG_DATA_DIR
 | --- | --- |
 | `strong_log_workout` | Log a completed workout (exercises by definition id; weights in display unit). |
 | `strong_delete_workout` | Soft-delete a logged workout by id. |
-| `strong_create_template` | Create a workout template (optional `folderId`, defaults to My Templates). |
+| `strong_create_template` | Create a workout template (optional `folderId`, defaults to My Templates). Sets can leave reps/weight blank; use `seconds` for timed exercises. |
 | `strong_update_template` | Rename a template by id. |
 | `strong_delete_template` | Soft-delete a template by id (also unlinks it from its folder). |
 | `strong_log_measurement` | Log a body measurement (`WEIGHT`, `BODY_FAT_PERCENTAGE`, `CALORIC_INTAKE`, …). |

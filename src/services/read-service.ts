@@ -1,3 +1,4 @@
+import { WEIGHT_CELL_TYPES } from "../constants.js";
 import type { Entity, Snapshot } from "../types.js";
 import { formatKg, formatLb, toDisplayMeasuredValue, type WeightUnit } from "../units.js";
 
@@ -6,13 +7,6 @@ interface Options {
   getWeightUnit: () => WeightUnit;
   userId: string;
 }
-
-const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT",
-  "BARBELL_WEIGHT",
-  "WEIGHTED_BODYWEIGHT",
-  "WEIGHT",
-]);
 
 function customName(e: Entity): string {
   const n = e.name as { custom?: string; en?: string } | undefined;
@@ -127,11 +121,14 @@ export class ReadService {
     };
   }
 
-  listTemplates() {
-    return this.visible(this.snap.entities.template).map((t) => ({
-      id: t.id,
-      name: customName(t),
-    }));
+  listTemplates(opts: { includeArchived?: boolean } = {}) {
+    return this.visible(this.snap.entities.template)
+      .filter((t) => opts.includeArchived || t.isArchived !== true)
+      .map((t) => ({
+        id: t.id,
+        name: customName(t),
+        ...(t.isArchived === true ? { archived: true } : {}),
+      }));
   }
 
   listExercises(search?: string) {

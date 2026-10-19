@@ -180,6 +180,17 @@ describe("buildLog (WORKOUT)", () => {
     ).toThrow(/requires a weight/i);
   });
 
+  it("throws when a workout set omits reps", () => {
+    expect(() =>
+      buildLog(
+        "WORKOUT",
+        { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ weight: 100 }] }] },
+        snap(),
+        deps,
+      ),
+    ).toThrow(/requires a reps/i);
+  });
+
   it("passes weight through unconverted when weightUnit is KILOGRAMS", () => {
     const kgDeps = { clock: makeClock(() => 1784685666000), weightUnit: "KILOGRAMS" as const };
     const log = buildLog(
@@ -204,6 +215,66 @@ describe("buildLog (TEMPLATE)", () => {
     expect(t.logType).toBe("TEMPLATE");
     expect(t.startDate).toBeUndefined();
     expect(t._embedded.cellSetGroup[0].cellSets[0].isCompleted).toBe(false);
+  });
+
+  it("leaves reps and weight blank (null) when a template set omits them", () => {
+    const t = buildLog(
+      "TEMPLATE",
+      { name: "x", exercises: [{ exerciseId: "ex-barbell", sets: [{ rpe: 8 }] }] },
+      snap(),
+      deps,
+    ) as any;
+    const cells = t._embedded.cellSetGroup[0].cellSets[0].cells;
+    expect(Object.fromEntries(cells.map((c: any) => [c.cellType, c.value]))).toEqual({
+      BARBELL_WEIGHT: null,
+      REPS: null,
+      RPE: "8",
+    });
+  });
+
+  it("writes OTHER_WEIGHT (machine/cable) cells", () => {
+    const s = snap();
+    s.entities.measurement["ex-cable"] = {
+      id: "ex-cable",
+      isHidden: false,
+      measurementType: "EXERCISE",
+      name: { custom: "Face Pull (Cable)" },
+      cellTypeConfigs: [
+        { cellType: "OTHER_WEIGHT", index: 0 },
+        { cellType: "REPS", index: 1 },
+      ],
+    } as any;
+    const kgDeps = { clock: makeClock(() => 1784685666000), weightUnit: "KILOGRAMS" as const };
+    const t = buildLog(
+      "TEMPLATE",
+      { name: "x", exercises: [{ exerciseId: "ex-cable", sets: [{ reps: 12, weight: 32 }] }] },
+      s,
+      kgDeps,
+    ) as any;
+    expect(t._embedded.cellSetGroup[0].cellSets[0].cells).toMatchObject([
+      { cellType: "OTHER_WEIGHT", value: "32" },
+      { cellType: "REPS", value: "12" },
+    ]);
+  });
+
+  it("writes seconds into DURATION cells", () => {
+    const s = snap();
+    s.entities.measurement["ex-plank"] = {
+      id: "ex-plank",
+      isHidden: false,
+      measurementType: "EXERCISE",
+      name: { custom: "Plank" },
+      cellTypeConfigs: [{ cellType: "DURATION", index: 0 }],
+    } as any;
+    const t = buildLog(
+      "TEMPLATE",
+      { name: "x", exercises: [{ exerciseId: "ex-plank", sets: [{ seconds: 30 }, {}] }] },
+      s,
+      deps,
+    ) as any;
+    const sets = t._embedded.cellSetGroup[0].cellSets;
+    expect(sets[0].cells).toMatchObject([{ cellType: "DURATION", value: "30" }]);
+    expect(sets[2].cells).toMatchObject([{ cellType: "DURATION", value: null }]);
   });
 });
 

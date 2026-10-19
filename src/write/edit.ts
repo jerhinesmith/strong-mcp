@@ -1,13 +1,7 @@
+import { WEIGHT_CELL_TYPES } from "../constants.js";
 import type { Entity } from "../types.js";
 import { lbToKg, type WeightUnit } from "../units.js";
 import type { Clock } from "./ids.js";
-
-const WEIGHT_CELL_TYPES = new Set([
-  "DUMBBELL_WEIGHT",
-  "BARBELL_WEIGHT",
-  "WEIGHTED_BODYWEIGHT",
-  "WEIGHT",
-]);
 
 export function editEntityName(entity: Entity, name: string, clock: Clock): Entity {
   const clone = structuredClone(entity) as any;

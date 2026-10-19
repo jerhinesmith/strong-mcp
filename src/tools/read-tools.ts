@@ -52,8 +52,13 @@ export function registerReadTools(server: McpServer, deps: Deps): void {
 
   server.registerTool(
     "strong_list_templates",
-    { description: "List saved workout templates.", inputSchema: {} },
-    async () => text(service.listTemplates()),
+    {
+      description:
+        "List saved workout templates. Archived ones are skipped unless includeArchived is set.",
+      inputSchema: { includeArchived: z.boolean().optional() },
+    },
+    async (args: { includeArchived?: boolean }) =>
+      text(service.listTemplates({ includeArchived: args.includeArchived })),
   );
 
   server.registerTool(

@@ -7,10 +7,13 @@ const text = (data: unknown) => ({
 });
 
 const setSchema = {
-  reps: z.number().int().positive(),
-  /** Omit for exercises with no weight cell type (e.g. bodyweight movements). */
+  /** Omit on a template to leave it blank. */
+  reps: z.number().int().positive().optional(),
+  /** Omit for exercises with no weight cell type (e.g. bodyweight movements), or on a template to leave it blank. */
   weight: z.number().nonnegative().optional(),
   rpe: z.number().optional(),
+  /** Seconds, for DURATION exercises (planks, hangs). */
+  seconds: z.number().int().positive().optional(),
 };
 const exerciseSchema = { exerciseId: z.string(), sets: z.array(z.object(setSchema)).min(1) };
 const cellConfigSchema = {
@@ -45,7 +48,8 @@ export function registerWriteTools(server: McpServer, service: WriteService): vo
   server.registerTool(
     "strong_create_template",
     {
-      description: "Create a workout template. Optional folderId (defaults to My Templates).",
+      description:
+        "Create a workout template. Optional folderId (defaults to My Templates). Omit reps/weight/seconds on a set to leave that cell blank; use seconds for DURATION exercises.",
       inputSchema: {
         name: z.string(),
         folderId: z.string().optional(),
